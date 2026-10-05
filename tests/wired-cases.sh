@@ -47,6 +47,20 @@ run_rc 0 gate prepare
 TEST_EPOCH=$((TEST_EPOCH+900)); export TEST_EPOCH
 run_rc 76 gate prepare
 pass 'wired night attempts persist, require 15 minutes and stop at two'
+reset; wired_fixture; TEST_CLOCK='01 00 00'; TEST_DATE=2026-10-06; TEST_WEEKDAY=2; export TEST_CLOCK TEST_DATE TEST_WEEKDAY
+printf '2026-10-06 2 0 0\n' > "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
+printf '2026-10-06 4\n' > "$TEST_ROOT/etc/scut-multiwan/wired.limit-override"
+run_rc 0 gate prepare
+read stamp count last block < "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
+[ "$count" = 3 ] || fail 'temporary cap reset existing attempts'
+run_rc 76 gate prepare
+rm "$TEST_ROOT/etc/scut-multiwan/wired.limit-override"
+printf '2026-10-06 3 0 0\n' > "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
+run_rc 76 gate prepare
+TEST_CLOCK='07 00 00'; export TEST_CLOCK
+run_rc 0 gate prepare
+pass 'approved temporary wired cap preserves attempts/cooldown and expires safely'
+reset; wired_fixture; printf '2026-10-06 2 0 0\n' > "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
 TEST_CLOCK='07 00 00'; export TEST_CLOCK
 run_rc 0 gate prepare
 pass '07:00 wired recovery bypasses night attempt cap'
@@ -84,8 +98,10 @@ run_rc 0 "$BIN/dualwan-refresh" apply
 pass 'wired readiness rejects reused process IDs'
 reset; wired_fixture; run_rc 75 gate challenge; run_rc 0 gate journal; run_rc 0 gate challenge
 TEST_CLOCK='00 24 59'; TEST_DATE=2026-10-06; TEST_WEEKDAY=2; export TEST_CLOCK TEST_DATE TEST_WEEKDAY
+run_rc 0 gate challenge
+TEST_DATE=2026-10-08; TEST_WEEKDAY=4; TEST_CLOCK='01 00 00'; export TEST_DATE TEST_WEEKDAY TEST_CLOCK
 run_rc 76 gate challenge
-pass 'existing EAP challenge needs occupied journal, actual lock and active policy'
+pass 'existing EAP challenge allows holiday protection but refuses working nights'
 reset; wired_fixture
 rm -f "$TEST_ROOT/mock-engine.pid"
 "$LIB/wired-run" > "$TEST_ROOT/last-output" 2>&1 & wrapper=$!

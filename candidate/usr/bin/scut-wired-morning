@@ -1,0 +1,16 @@
+#!/bin/sh
+# Wake recovery at 07:00 without stopping a healthy/starting protocol engine.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+mw_require_active 60 || exit $?
+mw_lock wired-morning 8 || exit $?
+[ -f /etc/scut-wired.conf ] || exit 0
+. /etc/scut-wired.conf
+[ "$WIRED_ENABLE" = 1 ] || exit 0
+exec 7>>/tmp/scut-multiwan-locks/wired-engine || exit 75
+flock -n 7 || exit 0
+flock -u 7
+exec 7>&-
+# Serialize the check/start; never restart an occupied session. start_service
+# is idempotent for procd and the protocol engine also owns the singleton lock.
+/etc/init.d/scut-wired start
+exit $?

@@ -16,7 +16,7 @@ engine=$!
 stop_engine() {
     kill -TERM "$engine" 2>/dev/null || true
     wait "$engine" 2>/dev/null || true
-    /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1 || true
     exit 0
 }
 trap stop_engine TERM INT

@@ -568,3 +568,151 @@ Recovery and limitations:
   limited observation window, not evidence of long-term reliability.
 * Local sources, README and records updated; unrelated changes preserved.
   No Git commit or push performed.
+
+
+Network-experience/code review — 2026-10-06 GMT+8
+
+User requested a broad function/code/logic review for better network experience,
+including MCS9 downgrade and delayed MCS7 promotion. Review began with a clean
+main/origin/main at bb5a178; the earlier uncommitted statements above describe
+their historical stages, not the current Git state.
+
+Reviewed maintenance/Portal/calendar/wired sources and tests; read-only router
+checks beginning at 01:19 showed all three bound HTTPS HEAD probes returning
+200 (about 78–86 ms), Native TX MCS9/RX MCS11, USB TX/RX MCS11, shared AP/channel,
+wired 100 Mbps/full, the same ready engine, and 1:1:1 table 103/iif br-lan.
+Six key installed text hashes matched candidate; wired binary retained its
+final accepted hash. No throughput, loaded-latency or induced failure test.
+
+Important review findings: existing wired EAP challenges exit on Portal-lock
+contention. Their active guard also rejects them during holiday protection;
+holiday keepalive should be evaluated separately from expected work-night loss.
+User clarified during review that school service is unavailable 00:07–06:30
+on ordinary/make-up workdays; authentication loss then is expected, and only
+07:00 recovery is needed. Retain the existing 00:06–07:00 quiet guard. Wired
+recovery currently relies on procd's 60-second retry phase, not an exact 07:00
+wired cron; actual work-night/morning recovery remains to be observed.
+Daytime health has only one HTTPS target; interface-bound curl
+does not isolate system DNS. MCS decisions need denser daytime sampling,
+adequate fresh RX evidence and association revalidation. Further opportunities
+include route recovery hysteresis, final Native DHCP-transition rollback,
+bounded scan retries, loaded-latency measurements, IPv6/local-origin diagnosis,
+and better wired status/stop lifecycle.
+
+Actual BusyBox ash read-only common-function probes used fictitious clocks and
+mock HTTPS only: active(60) rejected holiday 00:05/00:10 and working-night 01:00;
+daytime primary-down/fallback-up returned offline, allowed-night returned online.
+No real authentication, scanning, rate change, service control or route write.
+No full regression/protocol suite rerun; earlier test results remain historical.
+
+Recommendations and evidence: docs/network-experience-review-20261006.txt.
+Only this review document and this operations record were modified locally;
+production was not changed. No commit/push performed.
+
+
+Network-experience implementation candidate — 2026-10-06 GMT+8
+
+User requested Bilibili primary / JD fallback HTTPS and the reviewed stability
+improvements, keeping router resource use bounded and ordinary/make-up working
+nights quiet until 07:00. Implemented local candidate scripts/protocol adapter,
+without replacing production files or cron and without service controls.
+
+Implementation details and limits: docs/network-experience-changes-20261006.md.
+13 text targets and candidate hashes: deployment/experience-20261006/.
+Observed production-before hashes were read at approximately 02:03, with
+existing text matching the HEAD baseline. Two new entry points are pending.
+No production backup/installer executed. Wired binary activation is separate:
+replacing a running executable would invalidate the exact exe-path eligibility
+check; do not overwrite or restart it tonight (two-attempt budget exhausted).
+
+Validation: final main logic passed all 112 isolated groups in actual router
+BusyBox ash. Final ARM64 protocol mock passed 19 checks, including deferred
+challenge handling and bounded lock waiting. No real protocol sockets in mock.
+Final cross-built binary SHA-256:
+d390261c58d575499902fc3b6da60d292057275c54a2fa3f22873f833ac62b25.
+Then adjusted only stderr redirection order on missing RAM-cache/state reads
+to silence first-read errors; semantics unchanged, local syntax/diff checked.
+
+Read-only HTTPS profile used candidate common functions in router /tmp with
+a separate RAM-cache path. Three bound links passed; real 0.15-0.17 seconds
+per probe, user+sys 0.08-0.09 seconds. Post-check loadavg 0.39/0.28/0.21,
+MemAvailable 135136 kB. Short idle observation, not loaded/long-term acceptance.
+An initial time invocation could not invoke a shell function; repeated with
+an explicit child shell. No scan, rate mutation, auth, logout or route change.
+
+SQM/IPv6/induced failures remain measurement-dependent; no shaping installation
+or IPv6 disable. Actual morning recovery/long-term roaming not yet verified.
+README/third-party notices updated. No commit or push.
+Final cache-read redirection revision also passed actual BusyBox syntax and
+bound wired HTTPS using the isolated /tmp helper (rc=0, no first-read error).
+Ready identity remained 27053/2497865; table 103 retained three weight-1
+next hops and pref 103 retained iif br-lan. All 13 bundled text SHA-256 values
+and local shell syntax matched; git diff --check passed. Production unchanged.
+
+
+Network-experience production deployment — 2026-10-06 GMT+8
+
+User explicitly approved immediate deployment and temporarily higher wired
+authentication budget. Added date-scoped wired.limit-override supporting caps
+3/4 (default 2), preserving actual counts, 900-second night cooldown, ordinary
+work-night guard and uncertain-release blocking. Legitimate excess counts stay
+readable after override removal, including daytime recovery; never reset quota.
+Wireless budgets untouched. Full final 113 isolated BusyBox ash groups passed;
+19 ARM64 protocol mock checks passed earlier for the identical binary. An initial
+new test insertion shared a fixture with the old morning case and correctly hit
+the 120-second cooldown; isolated that fixture before the successful full run.
+
+New deployment/install and rollback wrappers are baseline-bound to this round.
+14 targets (13 text + ARM64 binary) were staged in /tmp, nonempty/byte counts,
+hashes, shell syntax and binary --version checked before production writes.
+Dedicated on-device backup: /root/scut-multiwan-experience-backup-20261006,
+umask 077 (directory 700). Existing targets + absent flags, root cron, local
+wired ledger/budget snapshots were kept on-device; no credential config copied
+to the Mac. Preserve checksums cover config/credentials and wireless ledgers.
+
+Installer first stopped the old wired service and confirmed release, then
+held engine/Portal/route/QCA locks, marked deployment, used same-directory
+temporary files and atomic rename, merged only two new cron lines, notified
+crond and started the new engine after dropping locks/marker. No wireless scan,
+rate mutation, wireless restart or forced wireless authentication. Temporary
+wired cap set to 4 for this date, leaving previous 2 attempts recorded.
+
+02:12:35 installation finished with a 300-second automatic rollback armed.
+New engine PID/starttime 18410/3025749, exact exe /usr/bin/scutclient-wired,
+initial authentication and UDP heartbeat complete at 02:12:39; same-session
+server challenge admitted 02:12:42 and heartbeat completed 02:12:52.
+Final binary SHA-256 remains:
+d390261c58d575499902fc3b6da60d292057275c54a2fa3f22873f833ac62b25.
+
+02:13:08 verification: three bound Bilibili checks online, three bound JD HEAD
+HTTP 200 (Native .193703s, USB .203817s, wired .164980s). Mac downstream proxy-
+bypassed Bilibili HEAD 200 .073857s. Table 103 retains three weight-1 nexthops,
+pref 103 iif br-lan, hash/rp_filter settings retained. loadavg .43/.35/.25.
+
+02:13:50 all 14 installed hashes and preserved checksums passed; expected ready
+PID/starttime/exe and durable budget date/count=3/block=0 rechecked while Portal
+locked. Removed temporary override and automatic rollback armed marker only
+after successful verification. Normal night cap is again 2, used count 3
+retained: another failure tonight waits until 07:00, no further exemption.
+crond consumed reload notification. Native TX MCS9/RX MCS11 and USB TX/RX MCS11,
+connected about 28522/28463 seconds, confirming no wireless reassociation.
+
+Manual rollback: sh /root/scut-multiwan-experience-backup-20261006/rollback.sh
+Only this round's targets/cron restore; it must confirm wired release before
+binary replacement. Session/budget records are never restored or reset. If
+actual count is 3/4, rollback keeps a narrow old-gate read-range compatibility
+patch so 07:00 recovery can read the record; old normal night cap remains 2.
+Wired may wait until morning after rollback; healthy wireless route remains.
+Do not use historical broader rollback or repeat this installer.
+
+README, candidate, tests, third-party notices and deployment records updated.
+Real morning recovery, sustained roaming, loaded latency and long-term wired
+stability remain unverified; brief acceptance is not long-term assurance.
+This deployment record was written before the repository changes were
+committed or pushed.
+Final follow-up at 02:15:31: same engine identity remained online, all three
+primary HTTPS probes succeeded, routes unchanged, loadavg .10/.26/.23.
+Another server challenge at 02:14:42 completed heartbeat at 02:14:49.
+Temporary override and armed marker absent. Router lacks stat; permission
+verification repeated with ls -ld showing backup drwx------ (700). Final
+14 target + root cron hashes saved in final-installed.sha256.

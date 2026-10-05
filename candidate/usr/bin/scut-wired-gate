@@ -23,14 +23,24 @@ claim() {
     case "$stamp" in none|20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 75;; esac
     case "$count:$last:$block" in *[!0-9:]*) return 75;; esac
     [ -n "$count" ] && [ -n "$last" ] && [ -n "$block" ] && [ -z "$extra" ] || return 75
-    [ "$count" -le 2 ] && [ "$block" -le 1 ] || return 75
+    # A temporary approved cap must not make the durable journal unreadable
+    # after it expires. Excess attempts remain recorded, never reset.
+    [ "$count" -le 4 ] && [ "$block" -le 1 ] || return 75
     if [ "$stamp" != "$MW_DATE" ]; then
         [ "$stamp" = none ] || [ "$stamp" \< "$MW_DATE" ] || return 75
         count=0; last=0; block=0
     fi
     [ "$last" -eq 0 ] || [ $((now-last)) -ge 120 ] || return 76
     if mw_night_window; then
-        [ "$block" -eq 0 ] && [ "$count" -lt 2 ] || return 76
+        limit=2
+        if [ -f /etc/scut-multiwan/wired.limit-override ]; then
+            read -r override_date override_limit extra < /etc/scut-multiwan/wired.limit-override || return 75
+            case "$override_limit" in 3|4) ;; *) return 75;; esac
+            [ -z "$extra" ] || return 75
+            # Expire by date and at 07:00; never bypass quiet/cooldown/block.
+            [ "$override_date" != "$MW_DATE" ] || limit="$override_limit"
+        fi
+        [ "$block" -eq 0 ] && [ "$count" -lt "$limit" ] || return 76
         [ "$last" -eq 0 ] || [ $((now-last)) -ge 900 ] || return 76
         count=$((count+1))
     fi
@@ -49,7 +59,7 @@ case "$1" in
     journal) mw_require_active 45 || exit $?; write_state "$WIRED_IP" || exit 75;;
     challenge)
         # Response within a live, journalled session; no Start/new login/retry.
-        mw_require_active 60 || exit $?
+        mw_require_keepalive || exit $?
         check_state || exit $?
         [ "$stored" = "$WIRED_IP" ] || exit 75
         ;;

@@ -11,6 +11,7 @@ start_service() {
     procd_set_param respawn 3600 60 0
     procd_set_param stdout 0
     procd_set_param stderr 0
+    procd_set_param term_timeout 15
     procd_close_instance
 }
 # No wireless/wan6/DNS triggers: unrelated changes must not terminate wired auth.
@@ -27,5 +28,5 @@ stop_service() {
     kill -TERM "$pid" 2>/dev/null || true
 }
 service_stopped() {
-    /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1 || true
 }

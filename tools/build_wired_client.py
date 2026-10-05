@@ -19,7 +19,7 @@ auth = a.source / 'src/auth.c'
 s = auth.read_text()
 if 'wired_begin' in s:
     raise SystemExit('Use a fresh upstream source tree; refusing to patch twice')
-s = s.replace('#include "info.h"', '#include "info.h"\nint wired_begin(void);\nint wired_gate(const char*);\nint wired_expired(void);\nint wired_locked(void);\nint wired_renew(void);\nvoid wired_ready(void);\nvoid wired_finish(void);')
+s = s.replace('#include "info.h"', '#include "info.h"\nint wired_begin(void);\nint wired_gate(const char*);\nint wired_expired(void);\nint wired_locked(void);\nint wired_renew(void);\nvoid wired_ready(void);\nvoid wired_finish(void);\ntime_t wired_now(void);\nint wired_stopping(void);')
 s = s.replace('DRCOM_UDP_HEARTBEAT_TIMEOUT 2', 'DRCOM_UDP_HEARTBEAT_TIMEOUT 5')
 s = s.replace('auth_8021x_addr.sll_pkttype = PACKET_HOST;\n\treturn 0;',
               'auth_8021x_addr.sll_pkttype = PACKET_HOST;\n\tif (bind(auth_8021x_sock,(struct sockaddr*)&auth_8021x_addr,sizeof(auth_8021x_addr)) < 0) { ret=-1; goto ERR; }\n\treturn 0;')
@@ -27,11 +27,18 @@ s = s.replace('uint8_t recv_8021x_buf[ETH_FRAME_LEN] = { 0 };\n\tif (auth_8021x_
               'uint8_t recv_8021x_buf[ETH_FRAME_LEN] = { 0 };\n\tret = wired_begin();\n\tif (ret) return ret;\n\tif (auth_8021x_Init()')
 s = s.replace('ret = auth_8021x_Logoff();\n\tif (client == LOGOFF)',
               'ret = wired_gate("needs-release");\n\tif (ret == 0) {\n\t\tif (auth_8021x_Logoff() != 1 || wired_gate("released")) { ret=75; goto ERR1; }\n\t} else if (ret != 1) { ret=75; goto ERR1; }\n\tret = wired_gate("journal");\n\tif (ret) goto ERR1;\n\tif (client == LOGOFF)')
-s = s.replace('while (resev) {', 'while (resev) {\n\t\tif (wired_expired()) { ret=1; break; }')
+s = s.replace('int Authentication(int client) {', (root/'tools/wired-events.inc').read_text() + '\nint Authentication(int client) {')
+s = s.replace('while (resev) {', 'while (resev) {\n\t\tif (wired_stopping()) { ret=1; break; }\n\t\tif ((ret=wired_pending_poll()) != 0) break;\n\t\tif (wired_expired()) { ret=1; break; }')
+# Clock changes must not extend protocol deadlines/heartbeat waits.
+s = s.replace('time(NULL)', 'wired_now()')
+s = s.replace('\t\t\texit(EXIT_FAILURE);', '\t\t\treturn 1;')
+s = s.replace('while (resev == 0) {', 'while (resev == 0) {\n\t\tif (wired_stopping()) return -EINTR;')
+# Keep select wakeups short while there is a challenge pending.
+s = s.replace('tmp_timeout = timeout;\n\t\tswitch (select(auth_8021x_sock + auth_udp_sock + 1', 'tmp_timeout = timeout;\n\t\tif (pending_valid) tmp_timeout.tv_sec=1;\n\t\tswitch (select(auth_8021x_sock + auth_udp_sock + 1')
 s = s.replace('close(auth_udp_sock);\n\tauth_8021x_Logoff();', 'close(auth_udp_sock);\n\twired_finish();')
 s = s.replace('case MISC_HEART_BEAT_04_TYPE:', 'case MISC_HEART_BEAT_04_TYPE:\n\t\t\t\twired_ready();')
-s = s.replace('case IDENTITY:\n', 'case IDENTITY:\n\t\t\tif (!wired_locked() && wired_renew()) return 76;\n')
-s = s.replace('case MD5:\n', 'case MD5:\n\t\t\tif (!wired_locked() && wired_renew()) return 76;\n')
+s = s.replace('case IDENTITY:\n', 'case IDENTITY:\n\t\t\t{ int admit=wired_challenge_admit(recv_data); if(admit) return admit==77?0:admit; }\n')
+s = s.replace('case MD5:\n', 'case MD5:\n\t\t\t{ int admit=wired_challenge_admit(recv_data); if(admit) return admit==77?0:admit; }\n')
 s = s.replace('} else if ((EAP_Code) recv_data[18] == SUCCESS) {', '} else if ((EAP_Code) recv_data[18] == SUCCESS) {\n\t\tif (!wired_locked()) return 0;')
 # Validate lengths before packet-field access, including variable MD5/notification.
 s = s.replace('if (recv_len > 0 && memcmp', 'if (recv_len >= 12 && memcmp')

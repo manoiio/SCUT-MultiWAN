@@ -11,6 +11,11 @@ case "${1:-status}" in
    if mw_night_budget_read "$slot"; then printf '%s attempts=%s blocked=%s\n' "$slot" "$MW_NCOUNT" "$MW_NBLOCK"
    else printf '%s budget=invalid\n' "$slot"; fi
   done
+  if [ -f /etc/scut-multiwan/wired.night-budget ]; then
+   read -r stamp count last block extra < /etc/scut-multiwan/wired.night-budget
+   case "$count:$last:$block:$extra" in *[!0-9:]*|*::*) echo 'wired budget=invalid';;
+    *) printf 'wired date=%s attempts=%s blocked=%s\n' "$stamp" "$count" "$block";; esac
+  fi
   exit 0;;
  quiet|allow|clear) MODE="$1";;
  *) echo 'usage: scut-night-control status|quiet|allow [YYYY-MM-DD]|clear' >&2; exit 2;;

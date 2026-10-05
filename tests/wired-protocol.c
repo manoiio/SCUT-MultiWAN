@@ -4,6 +4,11 @@
 static int locked, renew_rc, renew_calls, sends, ready_calls;
 static unsigned char frame[ETH_FRAME_LEN];
 static int frame_len, peer_port=61440;
+static time_t mock_now=100;
+static int stopping, checks;
+time_t wired_now(void) { return mock_now; }
+int wired_stopping(void) { return stopping; }
+int wired_pending_poll(void);
 LOGLEVEL cloglev=NONE;
 int LogWrite(LOGTYPE t,LOGLEVEL l,char *f,...) { (void)t;(void)l;(void)f;return 0; }
 int wired_begin(void) { return 0; }
@@ -25,7 +30,7 @@ ssize_t recvfrom(int s,void *b,size_t n,int f,struct sockaddr *a,socklen_t *l) {
     memcpy(b,frame,frame_len);return frame_len;
 }
 static void reset(void) { locked=0;renew_rc=0;renew_calls=0;sends=0;memset(frame,0,sizeof(frame)); }
-#define CHECK(x) do { if(!(x)) { printf("FAIL line %d\n",__LINE__);return 1; } } while(0)
+#define CHECK(x) do { checks++; if(!(x)) { printf("FAIL line %d\n",__LINE__);return 1; } } while(0)
 int main(void) {
     unsigned char packet[ETH_FRAME_LEN]={0};
     UserName="fixture-user";Password="fixture-password";
@@ -34,7 +39,15 @@ int main(void) {
     reset();renew_rc=76;frame[18]=1;frame[21]=5;frame[22]=1;
     CHECK(auth_8021x_Handler(frame)==76 && renew_calls==1 && sends==0);
     reset();renew_rc=75;frame[18]=1;frame[21]=22;frame[22]=4;frame[23]=16;
-    CHECK(auth_8021x_Handler(frame)==76 && renew_calls==1 && sends==0);
+    CHECK(auth_8021x_Handler(frame)==0 && renew_calls==1 && sends==0);
+    CHECK(wired_pending_poll()==0 && sends==0);
+    renew_rc=0;
+    CHECK(wired_pending_poll()==0 && sends==1 && locked);
+    reset();renew_rc=75;frame[18]=1;frame[21]=5;frame[22]=1;
+    CHECK(auth_8021x_Handler(frame)==0 && sends==0);
+    mock_now+=15;
+    CHECK(wired_pending_poll()==76 && sends==0);
+    renew_rc=0;mock_now-=15;CHECK(wired_pending_poll()==0 && sends==1);
     reset();frame[18]=3;frame[21]=4;
     CHECK(auth_8021x_Handler(frame)==0 && sends==0);
     reset();locked=1;frame[18]=3;frame[21]=4;
@@ -50,6 +63,6 @@ int main(void) {
     frame[4]=4;CHECK(auth_UDP_Receiver(packet)==0);
     frame[4]=0x0b;frame_len=32;CHECK(auth_UDP_Receiver(packet)==1);
     peer_port=61441;CHECK(auth_UDP_Receiver(packet)==0);
-    puts("ALL 14 PROTOCOL CHECKS PASSED (no network operations)");
+    printf("ALL %d PROTOCOL CHECKS PASSED (including deferred lock/timeout; no network operations)\n", checks);
     return 0;
 }

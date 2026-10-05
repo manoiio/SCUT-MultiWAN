@@ -17,13 +17,18 @@
 
 ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 
+## 网络体验改进（已部署）
+
+2026-10-06 新版本使用 Bilibili 主 / 京东副 HTTPS，增加白天连续 MCS 采样、延迟升档、健康路由恢复确认与探测合并、扫描失败退避、保留候选 DHCP、有线挑战锁等待及 07:00 有线启动检查。普通工作日/补班日 00:06–07:00 静默保留。113 组路由器隔离回归、19 项有线协议 mock 已通过；2026-10-06 02:12:35（GMT+8）已部署，02:13:50 真实三路验证后解除自动回滚。新版有线已完成认证、心跳及同会话挑战；临时额度已撤销，保留实际 3 次记录。性能短测、规则和限制见 [改进说明](docs/network-experience-changes-20261006.md)，上线分阶段方案见 [候选部署说明](deployment/experience-20261006/README.md)。
+
 ## 文件
 
 | 路径 | 内容 |
 | --- | --- |
 | `candidate/` | 维护脚本及热插拔钩子，目录结构对应路由器根目录 |
 | `tests/build_router_tests.py` | 生成隔离的 BusyBox ash 回归测试 |
-| `deployment/` | 历史稳定性、`holiday-20261005/` 夜间策略及 `wired-20261006/` 有线部署/回滚记录 |
+| `deployment/` | 历史稳定性、夜间策略、有线及 `experience-20261006/` 部署/回滚记录 |
+| `docs/` | 网络体验改进实施与代码审查记录 |
 | `examples/campus-portal.conf.example` | 不含真实账号密码的配置示例 |
 | `THIRD_PARTY_NOTICES.md`、`LICENSES/` | 第三方来源、复用范围及许可证 |
 | `OPERATIONS.txt` | 本次修复与验证记录 |
@@ -48,15 +53,15 @@ python3 tests/build_router_tests.py
 
 夜间策略在 2026-10-05 23:20（GMT+8）部署；2026-10-06 有线扩展已核对原有 81 组与 19 组有线隔离检查，另通过 14 项无真实网络操作的协议回归。定时表参考见 `examples/crontab.quiet-window.example`。真实午夜恢复及 07:00 晨间行为仍需观察。
 
-随后将 `tests/router-suite.tar` 复制到目标 OpenWrt 的 `/tmp`，在确认 `/tmp/scut-multiwan-tests-holidays-20261005` 没有其他用途后执行：
+随后将 `tests/router-suite.tar` 复制到目标 OpenWrt 的 `/tmp`，在确认 `/tmp/scut-multiwan-tests-experience-20261006` 没有其他用途后执行：
 
 ```sh
-mkdir -p /tmp/scut-multiwan-tests-holidays-20261005
-tar -xf /tmp/router-suite.tar -C /tmp/scut-multiwan-tests-holidays-20261005
-sh /tmp/scut-multiwan-tests-holidays-20261005/run.sh
+mkdir -p /tmp/scut-multiwan-tests-experience-20261006
+tar -xf /tmp/router-suite.tar -C /tmp/scut-multiwan-tests-experience-20261006
+sh /tmp/scut-multiwan-tests-experience-20261006/run.sh
 ```
 
-测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 100 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
+测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 113 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
 
 ## 部署与回滚
 

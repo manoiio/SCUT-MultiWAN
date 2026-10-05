@@ -6,6 +6,6 @@ mw_require_route 40 || exit 0
 (
     sleep 3
     mw_require_route 35 || exit 0
-    /usr/bin/dualwan-refresh apply >/dev/null 2>&1
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1
 ) &
 exit 0

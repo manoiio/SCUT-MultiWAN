@@ -221,7 +221,6 @@ weak_check() {
 }
 
 scan_due() {
-    [ -f "$STATE_DIR/retry_scan" ] && return 0
     NOW="$(mw_uptime)"
     FILE="$STATE_DIR/last_scan"
 
@@ -233,6 +232,11 @@ scan_due() {
         return 0
     fi
     
+    if [ -f "$STATE_DIR/retry_scan" ]; then
+        RETRY="$(cat "$STATE_DIR/retry_scan")"
+        case "$RETRY" in ''|*[!0-9]*) RETRY=0;; esac
+        [ "$NOW" -ge "$RETRY" ]; return $?
+    fi
     [ "$LAST" -eq 0 ] && return 0
     [ $((NOW - LAST)) -ge "$SCAN_INTERVAL" ]
 
@@ -244,19 +248,30 @@ mark_scan() {
 
 run_native_best() {
     REASON="$1"
-
+    if [ "${FORCE_SCAN:-0}" != 1 ] && [ -f "$STATE_DIR/retry_scan" ]; then
+        RETRY="$(cat "$STATE_DIR/retry_scan")"
+        case "$RETRY" in ''|*[!0-9]*) RETRY=0;; esac
+        [ "$(mw_uptime)" -ge "$RETRY" ] || return 75
+    fi
     log "native-best triggered: $REASON"
     
     /usr/bin/native-best apply >/tmp/native-best-watchdog.log 2>&1
     BEST_RC=$?
     if [ "$BEST_RC" -eq 0 ]; then
         mark_scan
-        rm -f "$STATE_DIR/retry_scan"
+        rm -f "$STATE_DIR/retry_scan" "$STATE_DIR/scan_failures"
         log "native-best completed successfully"
         return 0
     fi
     
-    : > "$STATE_DIR/retry_scan"
+    FAILS="$(cat "$STATE_DIR/scan_failures" 2>/dev/null)"
+    case "$FAILS" in ''|*[!0-9]*) FAILS=0;; esac
+    [ "$FAILS" -lt 5 ] && FAILS=$((FAILS+1))
+    DELAY=300; I=1
+    while [ "$I" -lt "$FAILS" ]; do DELAY=$((DELAY*2)); I=$((I+1)); done
+    [ "$DELAY" -le 3600 ] || DELAY=3600
+    echo "$FAILS" > "$STATE_DIR/scan_failures"
+    echo "$(( $(mw_uptime)+DELAY ))" > "$STATE_DIR/retry_scan"
     log "native-best deferred/failed rc=$BEST_RC; next watchdog will retry"
     return "$BEST_RC"
 
@@ -304,7 +319,8 @@ esac
 # 正常在线期间只做非常低成本的 MCS / RSSI 维护。
 
 #
-maintain_rate "$RADIO" || exit $?
+# A minute-rate task may own the device lock. Health/07:00 recovery must still run.
+maintain_rate "$RADIO" || true
 
 #
 
@@ -329,7 +345,7 @@ else
         if /usr/bin/campus-portal-login "$DEV" \
             >/tmp/campus-portal-watchdog.log 2>&1
         then
-            /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+            /usr/bin/dualwan-refresh force >/dev/null 2>&1 || true
             log "$RADIO Portal recovery successful"
             rm -f "$STATE_DIR/offline.$RADIO"
         else

@@ -1,0 +1,15 @@
+#!/bin/sh
+# Minute-level daytime maintenance: no scan, DHCP or authentication.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+mw_require_scan 15 || exit $?
+mw_lock rate-watchdog 8 || exit $?
+# Do not add sampling work when the four-core router is already under pressure.
+if awk '$1 < 3 {ok=1} END {exit !ok}' /proc/loadavg; then
+    for dev in phy0-sta0 phy2-sta0; do
+        iw dev "$dev" link 2>/dev/null | grep -q '^Connected to ' || continue
+        /usr/bin/fix-qca-sta-rate "$dev" || true
+        break
+    done
+fi
+mw_require_route 25 || exit $?
+exec /usr/bin/dualwan-refresh apply

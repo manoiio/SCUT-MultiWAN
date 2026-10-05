@@ -28,10 +28,6 @@ wired_ready() {
     [ "$(readlink "/proc/$WIRED_PID/exe" 2>/dev/null)" = /usr/bin/scutclient-wired ]
 }
 online_confirm() {
-    mw_require_route 16 || return $?
-    mw_online "$1" 6 && return 0
-    sleep 1
-    mw_require_route 8 || return $?
     mw_online "$1" 6
 }
 remove_policy() {
@@ -48,8 +44,9 @@ status_cmd() {
         status_dev="$(iface_dev "$status_iface")" || continue
         printf '%s: %s ' "$status_iface" "$status_dev"
         if mw_quiet_now; then echo 'Internet probe skipped (quiet period)'
-        elif mw_online "$status_dev" 6; then echo online
-        else echo offline; fi
+        elif [ "$status_iface" = wan ] && ! wired_ready; then echo 'engine=not-ready (not eligible for ECMP)'
+        elif mw_online "$status_dev" 6; then echo 'HTTPS=online'
+        else echo "HTTPS=offline reason=${MW_HEALTH_REASON:-unknown}"; fi
     done
     echo 'RPDB:'
     ip rule show
@@ -59,13 +56,78 @@ status_cmd() {
 case "$1" in
     status) status_cmd; exit 0;;
     apply|'') MODE=apply;;
+    force) MODE=force;;
     remove) MODE=remove;;
-    *) echo "usage: $0 [apply|status|remove]" >&2; exit 2;;
+    *) echo "usage: $0 [apply|force|status|remove]" >&2; exit 2;;
 esac
-mw_require_route 55 || exit $?
+mw_require_route 30 || exit $?
 mw_lock dualwan-refresh 8 || exit $?
+INHERITED=0
+[ "$(readlink /proc/self/fd/9 2>/dev/null)" != /tmp/scut-multiwan-locks/portal ] || INHERITED=1
 mw_portal_lock 0 route || exit $?
 if [ "$MODE" = remove ]; then remove_policy; exit $?; fi
+STATE=/tmp/scut-multiwan-health
+mkdir -p "$STATE" || exit 1
+NOW="$(mw_uptime)"
+if [ "$MODE" = apply ] && [ -f "$STATE/last-apply" ]; then
+    read -r LAST extra < "$STATE/last-apply"
+    case "$LAST" in ''|*[!0-9]*) LAST=0;; esac
+    # Coalesce overlapping cron calls; topology events explicitly use force.
+    if [ -z "$extra" ] && [ "$NOW" -ge "$LAST" ] && [ $((NOW-LAST)) -lt 20 ]; then exit 0; fi
+fi
+SNAPSHOT="$(cat /etc/scut-multiwan/native.session /etc/scut-multiwan/usb.session /etc/scut-multiwan/wired.session 2>/dev/null)"
+# Never unlock an inherited transaction's open file description.
+if [ "$INHERITED" = 0 ]; then flock -u 9; exec 9>&-; fi
+identity() {
+    local dev ip assoc
+    dev="$(iface_dev "$1")" || return 1
+    ip="$(ip -4 -o addr show dev "$dev" scope global | awk 'NR==1 {print $4}')"
+    [ -n "$ip" ] || return 1
+    if [ "$1" = wan ]; then
+        wired_ready || return 1
+        assoc="$(cat /tmp/scut-wired-ready)"
+    else
+        assoc="$(iw dev "$dev" link 2>/dev/null | awk '/^Connected to / {print $3}')"
+        [ -n "$assoc" ] || return 1
+    fi
+    printf '%s %s %s\n' "$dev" "$ip" "$assoc"
+}
+OBSERVED=
+NOW="$(mw_uptime)"
+# A previously removed path needs two successes, at least 30s apart, before
+# rejoining. Bootstrap is immediate; hard identity changes also restart recovery.
+accept_health() {
+    local file key good since seen extra max_gap
+    file="$STATE/$IFACE.route"
+    key="$IDENTITY"
+    if [ -f "$file.identity" ] && [ "$(cat "$file.identity")" != "$key" ]; then
+        printf '0 0 changed\n' > "$file"
+    fi
+    printf '%s\n' "$key" > "$file.identity"
+    good=0; since=0; seen=
+    read -r good since seen extra 2>/dev/null < "$file" || true
+    case "$since" in ''|*[!0-9]*) since=0;; esac
+    [ "$since" -le "$NOW" ] || since=0
+    if [ "$rc" != 0 ]; then
+        printf '0 0 failed\n' > "$file.$$"; mv "$file.$$" "$file"
+        return 1
+    fi
+    if [ ! -f "$file" ]; then
+        printf '1 %s online\n' "$NOW" > "$file.$$"; mv "$file.$$" "$file"
+        return 0
+    fi
+    if [ "$good" != 1 ]; then
+        max_gap=360
+        mw_night_window && max_gap=1800
+        if [ "$since" = 0 ] || [ $((NOW-since)) -gt "$max_gap" ]; then
+            printf '0 %s recovering\n' "$NOW" > "$file.$$"; mv "$file.$$" "$file"
+            return 1
+        fi
+        [ $((NOW-since)) -ge 30 ] || return 1
+    fi
+    printf '1 %s online\n' "$NOW" > "$file.$$"; mv "$file.$$" "$file"
+    return 0
+}
 sysctl -qw net.ipv4.fib_multipath_hash_policy=1 || exit 1
 sysctl -qw net.ipv4.conf.all.rp_filter=0 || exit 1
 sysctl -qw net.ipv4.conf.default.rp_filter=0 || exit 1
@@ -75,17 +137,24 @@ for IFACE in wan1 wan2 usbwan wan; do
     case "$IFACE" in
         wan1|wan2) [ "$NATIVE_ADDED" = 0 ] || continue;;
         wan)
-            [ -f /etc/scut-wired.conf ] || continue
+            [ -f /etc/scut-wired.conf ] || { printf '0 0 disabled\n' > "$STATE/wan.route"; continue; }
             . /etc/scut-wired.conf
-            [ "$WIRED_ENABLE" = 1 ] && wired_ready || continue;;
+            [ "$WIRED_ENABLE" = 1 ] && wired_ready || { printf '0 0 missing\n' > "$STATE/wan.route"; continue; };;
     esac
-    DEV="$(iface_dev "$IFACE")" || continue
+    IDENTITY="$(identity "$IFACE")" || {
+        printf '0 0 missing\n' > "$STATE/$IFACE.route"
+        continue
+    }
+    DEV="${IDENTITY%% *}"
+    BEFORE="$IDENTITY"
     sysctl -qw "net.ipv4.conf.${DEV}.rp_filter=0" || exit 1
     online_confirm "$DEV"
     rc=$?
-    [ "$rc" -eq 76 ] && exit 76
-    [ "$rc" -eq 0 ] || continue
-    [ "$IFACE" != wan ] || wired_ready || continue
+    case "$rc" in 75|76) exit "$rc";; esac
+    [ "$(identity "$IFACE")" = "$BEFORE" ] || exit 75
+    OBSERVED="${OBSERVED}${IFACE} ${BEFORE}
+"
+    accept_health || continue
     GW="$(get_gateway "$DEV")"
     NET="$(get_network "$DEV")"
     mw_ipv4 "$GW" && [ -n "$NET" ] || continue
@@ -94,8 +163,25 @@ for IFACE in wan1 wan2 usbwan wan; do
 "
     case "$IFACE" in wan1|wan2) NATIVE_ADDED=1;; esac
  done
+mw_portal_lock 0 route || exit $?
+[ "$(cat /etc/scut-multiwan/native.session /etc/scut-multiwan/usb.session /etc/scut-multiwan/wired.session 2>/dev/null)" = "$SNAPSHOT" ] || exit 75
+while read -r iface expected; do
+    [ -n "$iface" ] || continue
+    [ "$(identity "$iface")" = "$expected" ] || exit 75
+done <<EOF
+$OBSERVED
+EOF
 [ -n "$HEALTHY" ] || fail_policy 'no healthy WAN with a usable route'
 mw_require_route 12 || exit $?
+# Compare the actual table too, so external edits cannot be hidden by a cache.
+ACTUAL="$(ip route show table "$TABLE")"
+RULES="$(ip rule show)"
+if [ -f "$STATE/topology" ] && [ "$(cat "$STATE/topology")" = "$(printf '%s' "$HEALTHY")" ] &&
+   [ -f "$STATE/table" ] && [ "$(cat "$STATE/table")" = "$ACTUAL" ] &&
+   [ -f "$STATE/rules" ] && [ "$(cat "$STATE/rules")" = "$RULES" ]; then
+    printf '%s\n' "$(mw_uptime)" > "$STATE/last-apply"
+    exit 0
+fi
 # Group connected prefixes so shared wireless subnets also work with a third WAN.
 NETS="$(printf '%s' "$HEALTHY" | awk '!seen[$1]++ {print $1}')"
 for NET in $NETS; do
@@ -134,5 +220,9 @@ while read -r stale_net; do
     printf '%s\n' "$NETS" | grep -Fxq "$stale_net" && continue
     ip route del table "$TABLE" "$stale_net" 2>/dev/null || true
 done
+printf '%s' "$HEALTHY" > "$STATE/topology.$$"; mv "$STATE/topology.$$" "$STATE/topology"
+ip route show table "$TABLE" > "$STATE/table.$$"; mv "$STATE/table.$$" "$STATE/table"
+ip rule show > "$STATE/rules.$$"; mv "$STATE/rules.$$" "$STATE/rules"
+printf '%s\n' "$(mw_uptime)" > "$STATE/last-apply"
 log "active healthy WANs: $(printf '%s' "$HEALTHY" | awk '{printf "%s ", $3}')"
 exit 0

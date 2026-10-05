@@ -7,7 +7,7 @@ root = Path(__file__).resolve().parents[1]
 out = root / 'tests/router-suite'
 shutil.rmtree(out, ignore_errors=True)
 (out/'bin').mkdir(parents=True)
-remote = '/tmp/scut-multiwan-tests-holidays-20261005'
+remote = '/tmp/scut-multiwan-tests-experience-20261006'
 for src in (root/'candidate').rglob('*'):
     if not src.is_file(): continue
     rel = src.relative_to(root/'candidate')
@@ -61,7 +61,7 @@ case "$name" in
    echo "ping" >> "$TEST_ROOT/trace"
    count="$(cat "$TEST_ROOT/ping-count" 2>/dev/null)"; count="${count:-0}"; count=$((count+1)); echo "$count" > "$TEST_ROOT/ping-count"
    [ "${TEST_VERIFY_PING_FAIL:-0}" = 1 ] && [ "$count" -gt 5 ] && exit 1
-   exit "${TEST_PING_FAIL:-0}";;
+   echo "64 bytes: time=1.0 ms"; exit "${TEST_PING_FAIL:-0}";;
  ubus|ifstatus)
    [ "$name" = ubus ] && iface="${2##*.}" || iface="$1"
    case "$iface" in wan1) dev=phy0-sta0; up=true;; wan2) dev=phy2-sta0; up=false; [ -f "$TEST_ROOT/radio2-enabled" ] && up=true;; usbwan) dev=phy3-sta0; up=true;; wan) dev=wan; up=true;; esac
@@ -76,8 +76,12 @@ case "$name" in
       printf 'Connected to 00:11:22:33:44:55 (on %s)\n freq: 5180\n' "$dev";;
     info) [ "$dev" = phy0-sta0 ] || [ -f "$TEST_ROOT/radio2-enabled" ];;
     station)
+      dumps="$(cat "$TEST_ROOT/dump-count" 2>/dev/null)"; dumps="${dumps:-0}"; dumps=$((dumps+1)); echo "$dumps" > "$TEST_ROOT/dump-count"
+      assoc=1000.0s; [ "${TEST_ASSOC_CHANGE:-999999}" -gt "$dumps" ] || assoc=1001.0s
+      printf 'rx packets: %s\nassociated at [boottime]: %s\n' "$((900+dumps))" "$assoc"
+      rx="${TEST_RX:-11}"; [ "${TEST_RX_VALID_LIMIT:-999999}" -ge "$dumps" ] || rx='?'
       [ "${TEST_CONNECTED:-1000}" = missing ] || printf 'connected time: %s seconds\n' "${TEST_CONNECTED:-1000}"
-      printf 'tx packets: 10000\ntx failed: %s\nsignal avg: -39\ntx bitrate: 458.8 MBit/s HE-MCS %s\nrx bitrate: 573.5 MBit/s HE-MCS %s\n' "${TEST_FAILED:-0}" "${TEST_TX:-9}" "${TEST_RX:-11}";;
+      printf 'tx packets: 10000\ntx failed: %s\nsignal avg: -39\ntx bitrate: 458.8 MBit/s HE-MCS %s\nrx bitrate: 573.5 MBit/s HE-MCS %s\n' "${TEST_FAILED:-0}" "${TEST_TX:-9}" "$rx";;
     scan) echo "SCAN $dev" >> "$TEST_ROOT/trace"; [ "${TEST_SCAN_EMPTY:-}" = "$dev" ] && exit 0; printf 'BSS 00:11:22:33:44:55\n freq: 5180\n signal: -39\n SSID: scut-student\n';;
     set) echo "RATE $dev $*" >> "$TEST_ROOT/trace"; case "$*" in *2:7*) [ "${TEST_ROLLBACK_RATE_FAIL:-0}" = 1 ] && exit 1;; esac; exit "${TEST_RATE_FAIL:-0}";;
     *) echo "iw $*" >> "$TEST_ROOT/trace";;
@@ -100,10 +104,11 @@ case "$name" in
     *) echo "ip $*" >> "$TEST_ROOT/trace";;
    esac; exit 0;;
  curl)
-   dev=; target=; prev=; url=; pwarg=0; output=
+   dev=; target=; prev=; url=; pwarg=0; output=; resolved=0
    for arg in "$@"; do
      [ "$prev" = --interface ] && dev="$arg"
      [ "$prev" = --output ] && output="$arg"
+     [ "$prev" = --resolve ] && resolved=1
      case "$arg" in
       http*://*) url="$arg";;
       wlan_user_ip=*) target="${arg#*=}";;
@@ -140,8 +145,10 @@ case "$name" in
       touch "$TEST_ROOT/$dev-login"
       [ "${TEST_LOGIN_TIMEOUT:-0}" = 1 ] && exit 28
       echo '{"result":1}';;
-    *baidu*|*taobao*)
-      case "$url" in *baidu*) [ "${TEST_PRIMARY_FAIL:-0}" = 0 ] || { printf 000; exit 28; };; esac
+    *bilibili*|*jd.com*)
+      if [ "${TEST_DNS_FAIL:-0}" = 1 ] && [ "$resolved" = 0 ]; then echo DNS_FAILURE >> "$TEST_ROOT/trace"; printf 000; exit 6; fi
+      [ "$resolved" = 0 ] || echo CACHED_TLS >> "$TEST_ROOT/trace"
+      case "$url" in *bilibili*) [ "${TEST_PRIMARY_FAIL:-0}" = 0 ] || { printf 000; exit 28; };; esac
       echo "HTTPS $dev" >> "$TEST_ROOT/trace"
       case "$dev" in
         phy0-sta0) online="${TEST_NATIVE_ONLINE:-1}";;
@@ -152,7 +159,7 @@ case "$name" in
       [ -f "$TEST_ROOT/$dev-offline" ] && online=0
       [ -f "$TEST_ROOT/$dev-login" ] && online="${TEST_AFTER_LOGIN_ONLINE:-1}"
       [ "$online" = 1 ] || { printf 000; exit 28; }
-      printf '%s' "${TEST_HTTPS_CODE:-200}";;
+      printf '%s %s' "${TEST_HTTPS_CODE:-200}" '198.51.100.20';;
     *) exit 1;;
    esac; exit 0;;
 esac
@@ -173,10 +180,13 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
- unset TEST_WIRED_ONLINE TEST_WIRED_IP
+ unset TEST_WIRED_ONLINE TEST_WIRED_IP TEST_RX_VALID_LIMIT TEST_ASSOC_CHANGE TEST_DNS_FAIL
  rm -f "$TEST_ROOT/etc/scut-wired.conf" "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
  unset TEST_CONNECTED TEST_DATE TEST_WEEKDAY TEST_EPOCH TEST_PRIMARY_FAIL TEST_CAL_FETCH_FAIL TEST_CAL_DOWNLOAD_FAIL TEST_CAL_BAD_NOTICE TEST_CLOCK TEST_REDIRECT TEST_HTTPS_CODE TEST_ACTIVE TEST_BEST_RC TEST_NATIVE_ONLINE TEST_USB_ONLINE TEST_CANDIDATE_ONLINE TEST_AFTER_LOGIN_ONLINE TEST_FAIL_LOGOUT_IP TEST_LOGIN_TIMEOUT TEST_ROUTE_FAIL TEST_PING_FAIL TEST_TX TEST_RX TEST_FAILED TEST_RATE_FAIL TEST_VERIFY_PING_FAIL TEST_ROLLBACK_RATE_FAIL TEST_SCAN_EMPTY
  : > "$TEST_ROOT/trace"
+ rm -f "$TEST_ROOT/dump-count"
+ rm -rf "$TEST_ROOT/tmp/scut-multiwan-health"
+ rm -f "$TEST_ROOT/tmp/native-watchdog/retry_scan" "$TEST_ROOT/tmp/native-watchdog/scan_failures"
  rm -f "$TEST_ROOT/ping-count"
  rm -f "$TEST_ROOT/phy0-sta0-offline" "$TEST_ROOT/phy2-sta0-offline" "$TEST_ROOT/phy3-sta0-offline"
  rm -f "$TEST_ROOT/radio2-enabled" "$TEST_ROOT/radio0-enabled" "$TEST_ROOT/rule-removed" "$TEST_ROOT/phy0-sta0-login" "$TEST_ROOT/phy2-sta0-login" "$TEST_ROOT/phy3-sta0-login"
@@ -236,6 +246,9 @@ reset; TEST_NATIVE_ONLINE=0; TEST_LOGIN_TIMEOUT=1; export TEST_NATIVE_ONLINE TES
 run_rc 1 "$BIN/campus-portal-login" phy0-sta0
 [ "$(cat "$TEST_ROOT/etc/scut-multiwan/native.session")" = '10.1.1.10 phy0-sta0' ] || fail 'lost unknown session'
 TEST_LOGIN_TIMEOUT=0; export TEST_LOGIN_TIMEOUT; rm -f "$TEST_ROOT/phy0-sta0-login"; : > "$TEST_ROOT/trace"
+ rm -f "$TEST_ROOT/dump-count"
+ rm -rf "$TEST_ROOT/tmp/scut-multiwan-health"
+ rm -f "$TEST_ROOT/tmp/native-watchdog/retry_scan" "$TEST_ROOT/tmp/native-watchdog/scan_failures"
 run_rc 0 "$BIN/campus-portal-login" phy0-sta0
 [ "$(grep -E 'LOGIN|LOGOUT' "$TEST_ROOT/trace" | head -1)" = 'LOGOUT phy0-sta0 167837962' ] || fail 'blind retry'
 pass 'ambiguous login retains journal and is released before retry'
@@ -280,28 +293,30 @@ grep -q 'he-mcs-5 2:9' "$TEST_ROOT/trace" || fail 'QCA precap'
 pass 'QCA TX above 9 is capped at 9'
 reset; TEST_RX=7; export TEST_RX
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
-grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'RX downgrade'; pass 'poor RX downgrades QCA to MCS7'
+! grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'single low RX round downgraded'
+run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
+grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'RX downgrade'; pass 'two fresh low RX rounds downgrade QCA to MCS7'
 reset; TEST_TX=7; export TEST_TX; mkdir -p "$TEST_ROOT/tmp/qca-fixed-rate"; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n' "$((now-600))" "$((now-600))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-600))" "$((now-600))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 ! grep -q 'he-mcs-5 2:9' "$TEST_ROOT/trace" || fail 'stale promotion'; pass 'overnight sampling gap resets QCA promotion timer'
 reset; TEST_TX=7; export TEST_TX; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 grep -q 'he-mcs-5 2:9' "$TEST_ROOT/trace" || fail 'no valid promotion'; pass 'five-minute good candidate promotes and verifies MCS9'
 reset; TEST_TX=7; TEST_VERIFY_PING_FAIL=1; export TEST_TX TEST_VERIFY_PING_FAIL; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 [ "$(sed -n '2p' "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state")" = 7 ] || fail 'failed promotion retained'; pass 'failed MCS9 validation returns to MCS7'
 reset; TEST_TX=7; TEST_VERIFY_PING_FAIL=1; TEST_ROLLBACK_RATE_FAIL=1; export TEST_TX TEST_VERIFY_PING_FAIL TEST_ROLLBACK_RATE_FAIL; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 1 "$BIN/fix-qca-sta-rate" phy0-sta0; pass 'failed rate rollback reports failure'
 reset; TEST_TX=7; export TEST_TX; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n20000\n0\n%s\n%s\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n20000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 ! grep -q 'he-mcs-5 2:9' "$TEST_ROOT/trace" || fail 'counter-reset promotion'; pass 'same-BSSID counter reset cancels promotion timer'
 reset; TEST_FAILED=30; export TEST_FAILED; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n9\n10000\n0\n0\n%s\n' "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n9\n10000\n0\n0\n%s\n1000.0s\n0\n0\n' "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'failures with no successful packets'; pass 'TX failure burst downgrades even with zero successful packets'
 # RX initialization grace is bounded by real driver association age.
@@ -314,6 +329,7 @@ done
 for age in 15 missing invalid; do
  reset; TEST_RX=0; TEST_CONNECTED="$age"; export TEST_RX TEST_CONNECTED
  run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
+ run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
  grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'unbounded warmup'
  pass "RX zero at age $age retains conservative downgrade"
 done
@@ -321,11 +337,11 @@ reset; TEST_RX=0; TEST_CONNECTED=0; TEST_PING_FAIL=1; export TEST_RX TEST_CONNEC
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'warmup hid gateway failure'; pass 'warmup still downgrades for gateway loss'
 reset; TEST_CONNECTED=0; TEST_FAILED=30; export TEST_CONNECTED TEST_FAILED; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n9\n10000\n0\n0\n%s\n' "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n9\n10000\n0\n0\n%s\n1000.0s\n0\n0\n' "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'warmup hid TX failures'; pass 'warmup still downgrades for TX failure burst'
 reset; TEST_CONNECTED=10; TEST_TX=7; export TEST_CONNECTED TEST_TX; now="$(awk '{print int($1)}' /proc/uptime)"
-printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
+printf '00:11:22:33:44:55@5180\n7\n9000\n0\n%s\n%s\n1000.0s\n0\n0\n' "$((now-301))" "$((now-1))" > "$TEST_ROOT/tmp/qca-fixed-rate/phy0-sta0.state"
 run_rc 0 "$BIN/fix-qca-sta-rate" phy0-sta0
 ! grep -q 'he-mcs-5 2:9' "$TEST_ROOT/trace" || fail 'warmup inherited promotion'; pass 'same-BSSID warmup cannot inherit promotion timer'
 reset; TEST_CONNECTED=0; TEST_RX=0; TEST_ACTIVE=both; export TEST_CONNECTED TEST_RX TEST_ACTIVE; touch "$TEST_ROOT/radio2-enabled"
@@ -357,7 +373,7 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

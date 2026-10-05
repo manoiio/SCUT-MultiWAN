@@ -7,10 +7,18 @@
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <syslog.h>
+#include <time.h>
 
 static int locked;
 static time_t deadline;
 static char user[33], pass[112];
+static volatile sig_atomic_t stopping;
+static int singleton = -1, announced;
+time_t wired_now(void) {
+    struct timespec ts;
+    return clock_gettime(CLOCK_MONOTONIC, &ts) == 0 ? ts.tv_sec : 0;
+}
+int wired_stopping(void) { return stopping; }
 
 int wired_gate(const char *action) {
     char cmd[160];
@@ -27,11 +35,11 @@ int wired_begin(void) {
     locked = 1;
     int rc = wired_gate("prepare");
     if (rc) { flock(9, LOCK_UN); close(9); locked = 0; return rc; }
-    deadline = time(NULL) + 45;
+    deadline = wired_now() + 45;
     return 0;
 }
 
-int wired_expired(void) { return locked && time(NULL) >= deadline; }
+int wired_expired(void) { return locked && wired_now() >= deadline; }
 int wired_locked(void) { return locked; }
 
 int wired_renew(void) {
@@ -43,7 +51,7 @@ int wired_renew(void) {
     locked=1;
     int rc=wired_gate("challenge");
     if (rc) { flock(9,LOCK_UN); close(9); locked=0; return rc; }
-    deadline=time(NULL)+45;
+    deadline=wired_now()+45;
     syslog(LOG_INFO,"existing-session server challenge admitted");
     return 0;
 }
@@ -54,7 +62,9 @@ static void refresh_routes(void) {
     if (pid == 0) {
         if (fork() != 0) _exit(0);
         setsid();
-        execl("/usr/bin/dualwan-refresh", "dualwan-refresh", "apply", (char*)NULL);
+        /* Route helpers must not keep the engine/socket/transaction alive. */
+        for (int fd=3; fd<64; fd++) close(fd);
+        execl("/usr/bin/dualwan-refresh", "dualwan-refresh", "force", (char*)NULL);
         _exit(1);
     }
     if (pid > 0) waitpid(pid, NULL, 0);
@@ -67,10 +77,12 @@ void wired_ready(void) {
     if (wired_gate(action)) return;
     syslog(LOG_INFO,"UDP heartbeat complete; existing session maintained");
     flock(9, LOCK_UN); close(9); locked = 0;
-    refresh_routes();
+    if (!announced) { announced=1; refresh_routes(); }
 }
 
 void wired_finish(void) {
+    /* Remove volatile readiness even if release must defer; retain journal. */
+    unlink("/tmp/scut-wired-ready");
     if (!locked) {
         int fd = open("/tmp/scut-multiwan-locks/portal", O_WRONLY);
         if (fd < 0) return;
@@ -84,7 +96,7 @@ void wired_finish(void) {
     flock(9, LOCK_UN); close(9); locked = 0;
 }
 
-static void terminate(int sig) { (void)sig; _exit(0); }
+static void terminate(int sig) { (void)sig; stopping=1; }
 
 static int read_secret(char *buf, size_t size) {
     if (!fgets(buf, size, stdin)) return 1;
@@ -127,7 +139,7 @@ int main(int argc, char **argv) {
     if (!inet_aton(argv[2],&udpserver_ipaddr) || !inet_aton(argv[3],&dns_ipaddr)) return 2;
     strncpy(HostName,argv[4],sizeof(HostName)-1);
     signal(SIGTERM,terminate); signal(SIGINT,terminate);
-    int singleton = open("/tmp/scut-multiwan-locks/wired-engine",O_WRONLY|O_CREAT,0600);
+    singleton = open("/tmp/scut-multiwan-locks/wired-engine",O_WRONLY|O_CREAT,0600);
     if (singleton < 0 || flock(singleton,LOCK_EX|LOCK_NB)) return 75;
     int rc = Authentication(1);
     syslog(LOG_INFO,"attempt exited code=%d",rc);

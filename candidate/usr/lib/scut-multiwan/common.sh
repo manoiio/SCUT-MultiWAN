@@ -159,23 +159,84 @@ mw_portal_lock() {
 }
 
 mw_https() {
-    local code
-    code="$(curl -4 --interface "$1" --silent --fail --head \
-        --max-time "${3:-8}" --output /dev/null --write-out '%{http_code}' \
-        "$2" 2>/dev/null)" || return 1
-    [ "$code" = 200 ]
+    local result rc code addr host cache stamp old extra now
+    case "$2" in
+        https://www.bilibili.com/) host=www.bilibili.com;;
+        https://www.jd.com/) host=www.jd.com;;
+        *) return 2;;
+    esac
+    case "$1" in ''|*[!a-zA-Z0-9_.-]*) return 2;; esac
+    cache="/tmp/scut-multiwan-health/$1.$host.dns"
+    set -- "$1" "$2" "${3:-3}" "${4:-normal}"
+    now="$(mw_uptime)"
+    if [ "$4" = cached ]; then
+        read -r stamp old extra 2>/dev/null < "$cache" || return 1
+        case "$stamp" in ''|*[!0-9]*) return 1;; esac
+        [ -z "$extra" ] && mw_ipv4 "$old" && [ "$stamp" -le "$now" ] &&
+            [ $((now-stamp)) -le 600 ] || return 1
+        result="$(curl -4 --interface "$1" --noproxy '*' --silent --fail --head \
+            --connect-timeout 2 --max-time "$3" --resolve "$host:443:$old" \
+            --output /dev/null --write-out '%{http_code} %{remote_ip}' "$2" 2>/dev/null)"
+    else
+        result="$(curl -4 --interface "$1" --noproxy '*' --silent --fail --head \
+            --connect-timeout 2 --max-time "$3" --output /dev/null \
+            --write-out '%{http_code} %{remote_ip}' "$2" 2>/dev/null)"
+    fi
+    rc=$?
+    MW_HEALTH_RC="$rc"
+    read -r code addr <<EOF
+$result
+EOF
+    case "$rc:$code" in
+        0:200) MW_HEALTH_REASON=online;;
+        6:*) MW_HEALTH_REASON=dns; return 1;;
+        7:*|28:*) MW_HEALTH_REASON=connect-or-timeout; return 1;;
+        35:*|51:*|60:*) MW_HEALTH_REASON=tls; return 1;;
+        *) MW_HEALTH_REASON="http-${code:-000}-curl-$rc"; return 1;;
+    esac
+    # RAM only; write at most once per minute. Never cache an unverified result.
+    if [ "$4" != cached ] && mw_ipv4 "$addr"; then
+        stamp=0; old=
+        read -r stamp old extra 2>/dev/null < "$cache" || stamp=0
+        case "$stamp" in ''|*[!0-9]*) stamp=0;; esac
+        if [ "$old" != "$addr" ] || [ "$stamp" -gt "$now" ] || [ $((now-stamp)) -ge 60 ]; then
+            (umask 077; mkdir -p /tmp/scut-multiwan-health &&
+                printf '%s %s\n' "$now" "$addr" > "$cache.$$" && mv "$cache.$$" "$cache") || true
+        fi
+    fi
+    return 0
 }
 
 mw_online() {
-    mw_require_route $((${2:-8} + 2)) || return $?
-    mw_https "$1" https://www.baidu.com/ "${2:-8}" && return 0
-    # Only the new holiday night policy uses an independent fallback target.
-    if mw_night_window; then
-        mw_require_route $((${2:-8} + 2)) || return $?
-        mw_https "$1" https://www.taobao.com/ "${2:-8}"
-        return $?
-    fi
+    local end left cap url
+    mw_require_route $((${2:-6} + 2)) || return $?
+    end=$(( $(mw_uptime) + ${2:-6} ))
+    for url in https://www.bilibili.com/ https://www.jd.com/; do
+        left=$((end-$(mw_uptime))); [ "$left" -gt 0 ] || return 1
+        cap=3; [ "$left" -ge "$cap" ] || cap="$left"
+        mw_https "$1" "$url" "$cap" && return 0
+        # Shared resolver failure may be bypassed using a recent verified IP,
+        # retaining host/SNI/certificate checks. No permanent CDN pinning.
+        if [ "${MW_HEALTH_RC:-0}" = 6 ]; then
+            left=$((end-$(mw_uptime))); [ "$left" -gt 1 ] || continue
+            cap=2; [ "$left" -gt 2 ] || cap=1
+            mw_require_route "$left" || return $?
+            mw_https "$1" "$url" "$cap" cached && return 0
+        fi
+        mw_require_route 2 || return $?
+    done
     return 1
+}
+
+# Existing session challenges on allowed nights are distinct from new login.
+# Work/make-up/unknown nights remain silent; deployment also blocks them.
+mw_require_keepalive() {
+    [ ! -e /tmp/scut-multiwan-deploying ] || return 75
+    mw_clock || return 76
+    if [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ]; then
+        mw_day_allowed || return 76
+    fi
+    return 0
 }
 
 # Root-owned budget records, separate from Portal session journals.

@@ -12,7 +12,7 @@ cleanup() {
     for scan_iface in $SCAN_IFACES; do iw dev "$scan_iface" del >/dev/null 2>&1 || true; done
     rm -f "${BASE}".*
     if [ "$CHANGED" -eq 1 ]; then
-        /usr/bin/dualwan-refresh apply >/dev/null 2>&1 ||
+        /usr/bin/dualwan-refresh force >/dev/null 2>&1 ||
             logger -t native-best "WAN transition finished; dual-WAN refresh deferred/failed"
     fi
 }
@@ -370,40 +370,13 @@ disable_radio() {
 
 }
 
-#
-
-# 将候选 WAN 从 metric=100 恢复为正式主线路。
-
-#
-
-# OpenWrt 运行中的 DHCP route 不会因为单纯删除 UCI metric
-
-# 自动更新，所以需要重新 ifdown/ifup WAN。
-
-#
+# Candidate metric 100 remains the primary (USB 300 / wired 600). Keeping it
+# avoids tearing down a verified DHCP lease simply to change its priority.
 make_primary() {
-    mw_require_active 40 || return $?
-    CHANGED=1
-    RADIO="$1"
-    WAN="$(radio_wan "$RADIO")"
-
-    log "Promoting $RADIO to primary"
-    
-    uci -q delete network."$WAN".metric
-    uci commit network
-    
-    ifdown "$WAN" >/dev/null 2>&1
-    
-    sleep 1
-    
-    ifup "$WAN" >/dev/null 2>&1
-    
-    #
-    # 这里不再假定固定 3 秒后一定恢复。
-    # 后续统一由 wait_internet() 判断。
-    #
-    sleep 2
-
+    mw_require_active 10 || return $?
+    RADIO="$1"; WAN="$(radio_wan "$RADIO")"
+    connected "$RADIO" && wan_up "$RADIO" || return 1
+    log "Keeping verified $RADIO DHCP lease (primary metric 100)"
 }
 
 #
@@ -424,11 +397,34 @@ rollback_old() {
         fi
     fi
     disable_radio "$new" || return $?
+    if ! connected "$old" || ! wan_up "$old"; then
+        enable_candidate "$old" || return $?
+    fi
     if /usr/bin/campus-portal-login "$olddev" && wait_internet "$old"; then
         log "Rollback successful: $old restored"
     else
         log "CRITICAL: rollback Internet verification failed"
     fi
+    return 1
+}
+
+# Final transition is part of the same serialized transaction. If any final
+# verification fails, release the candidate before restoring the old path.
+finish_switch() {
+    local old new newdev ip
+    old="$1"; new="$2"; newdev="$(radio_dev "$new")"
+    if disable_radio "$old" && make_primary "$new"; then
+        /usr/bin/fix-qca-sta-rate "$newdev" >/dev/null 2>&1 || true
+        if wait_internet "$new"; then
+            ip="$(ip -4 -o addr show dev "$newdev" scope global | awk 'NR==1 {split($4,a,"/");print a[1]}')"
+            if mw_ipv4 "$ip" && mw_record_online native "$newdev" "$ip"; then
+                log "Native switched: $old -> $new (verified DHCP retained)"
+                return 0
+            fi
+        fi
+    fi
+    log "Final transition failed; restoring $old after candidate release"
+    rollback_old "$old" "$new"
     return 1
 }
 
@@ -501,25 +497,9 @@ portal_safe_switch() {
         fi
     
         /usr/bin/campus-portal-login "$NEWDEV" || return $?
-        disable_radio "$OLD" || return $?
-    
-        make_primary "$NEW" || return $?
-    
-        /usr/bin/fix-qca-sta-rate "$NEWDEV" \
-            >/dev/null 2>&1 || return $?
-    
-        #
-        # 修复点：
-        # WAN transition 后不再立即单次判断。
-        #
-        if wait_internet "$NEW"; then
-            log "Native switched: $OLD -> $NEW"
-            return 0
-        fi
-    
-        log "WARNING: $NEW still unavailable after final WAN transition"
-    
-        return 1
+        finish_switch "$OLD" "$NEW"
+        return $?
+
     fi
     
     #
@@ -580,26 +560,8 @@ portal_safe_switch() {
     #
     # NEW 已经真正可用。
     #
-    disable_radio "$OLD" || return $?
-    
-    make_primary "$NEW" || return $?
-    
-    /usr/bin/fix-qca-sta-rate "$NEWDEV" \
-        >/dev/null 2>&1 || return $?
-    
-    #
-    # 最终 WAN transition 验证。
-    #
-    if wait_internet "$NEW"; then
-    
-        log "Native switched: $OLD -> $NEW"
-    
-        return 0
-    fi
-    
-    log "WARNING: $NEW still unavailable after final WAN transition"
-    
-    return 1
+    finish_switch "$OLD" "$NEW"
+    return $?
 
 }
 
@@ -664,6 +626,7 @@ apply_best() {
         return 1
     }
     
+    mw_portal_lock 30 || return $?
     CURRENT="$(current_radio)"
     
     echo
@@ -792,6 +755,7 @@ apply_best() {
 }
 
 force_switch() {
+    mw_portal_lock 30 || return $?
     TARGET="$1"
 
     case "$TARGET" in
@@ -925,7 +889,6 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 if [ "$1" = survey ]; then survey; exit $?; fi
-mw_portal_lock 30 || exit $?
 case "$1" in
     apply|auto) apply_best;;
     switch) force_switch "$2";;

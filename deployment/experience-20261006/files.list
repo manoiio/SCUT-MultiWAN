@@ -1,0 +1,14 @@
+/etc/hotplug.d/iface/95-dualwan-refresh
+/etc/init.d/scut-wired
+/usr/bin/dualwan-refresh
+/usr/bin/fix-qca-sta-rate
+/usr/bin/native-best
+/usr/bin/native-watchdog
+/usr/bin/scut-night-control
+/usr/bin/scut-rate-watchdog
+/usr/bin/scut-wired-gate
+/usr/bin/scut-wired-morning
+/usr/bin/usb-watchdog
+/usr/lib/scut-multiwan/common.sh
+/usr/lib/scut-multiwan/wired-run
+/usr/bin/scutclient-wired

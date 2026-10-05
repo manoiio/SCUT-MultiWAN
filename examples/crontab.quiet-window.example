@@ -22,3 +22,7 @@
 29,44,59 0 * * * /usr/bin/scut-night-watchdog route >/dev/null 2>&1
 14,29,44,59 1-6 * * * /usr/bin/scut-night-watchdog route >/dev/null 2>&1
 13 12 1 * * /usr/bin/scut-calendar-update >/dev/null 2>&1
+# Daytime minute rate/health task; hard guards forbid overnight tuning/scans.
+# Primary HTTPS only on success; duplicate route requests coalesce for 20s.
+* 7-23 * * * /usr/bin/scut-rate-watchdog >/dev/null 2>&1
+0 7 * * * /usr/bin/scut-wired-morning >/dev/null 2>&1
