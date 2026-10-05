@@ -1,0 +1,49 @@
+#!/bin/sh
+# Low-frequency holiday recovery. No scan, roaming, rate tuning or wifi restart.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+mw_clock || exit 76
+[ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ] || exit 0
+case "${1:-}" in
+ route) mw_require_route 40 || exit $?; exec /usr/bin/dualwan-refresh apply;;
+ native|usb) SLOT="$1";;
+ *) exit 2;;
+esac
+mw_require_active 30 || exit $?
+mw_lock "night-$SLOT" 8 || exit $?
+mw_portal_lock 0 || exit $?
+iface_dev() {
+ local status dev
+ status="$(ubus call "network.interface.$1" status 2>/dev/null)" || return 1
+ printf '%s\n' "$status" | grep -q '"up":[[:space:]]*true' || return 1
+ dev="$(printf '%s\n' "$status" | sed -n 's/^[[:space:]]*"l3_device":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+ case "$SLOT:$dev" in native:phy0-sta*|native:phy2-sta*|usb:phy3-sta*|usb:mtusb*) ;; *) return 1;; esac
+ [ -e "/sys/class/net/$dev" ] || return 1
+ iw dev "$dev" link 2>/dev/null | grep -q '^Connected to' || return 1
+ printf '%s\n' "$dev"
+}
+DEV=
+if [ "$SLOT" = native ]; then
+ for iface in wan1 wan2; do
+  candidate="$(iface_dev "$iface")" || continue
+  if [ -n "$DEV" ]; then logger -t scut-night 'multiple Native radios; defer topology repair until 07:00'; exit 75; fi
+  DEV="$candidate"
+ done
+else DEV="$(iface_dev usbwan)" || DEV=; fi
+if [ -z "$DEV" ]; then
+ logger -t scut-night "$SLOT no associated uplink; retain other WAN, repair at 07:00"
+ exit 1
+fi
+mw_online "$DEV" 6 && exit 0
+# Avoid one transient failure. The actual login entry independently requires
+# an exact SCUT redirect and claims a durable budget under inherited FD 9.
+sleep 2
+mw_require_active 30 || exit $?
+mw_online "$DEV" 6 && exit 0
+if [ "$SLOT" = native ]; then /usr/bin/campus-portal-login "$DEV" >/dev/null 2>&1
+else /usr/bin/campus-usb-login "$DEV" >/dev/null 2>&1; fi
+RC=$?
+if [ "$RC" -eq 0 ]; then
+ logger -t scut-night "$SLOT public HTTPS verified after recovery"
+ /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+else logger -t scut-night "$SLOT recovery failed/deferred rc=$RC"; fi
+exit "$RC"

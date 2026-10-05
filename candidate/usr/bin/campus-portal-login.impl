@@ -96,7 +96,13 @@ fi
 
 log "$DEV: AC=$AC_IP"
 
-mw_prepare_login native "$DEV" "$USER_IP" || exit $?
+mw_night_claim native || exit $?
+if mw_prepare_login native "$DEV" "$USER_IP"; then :
+else
+    PREPARE_RC=$?
+    mw_night_block native || true
+    exit "$PREPARE_RC"
+fi
 mw_require_active 20 || exit $?
 
 RESPONSE="$(

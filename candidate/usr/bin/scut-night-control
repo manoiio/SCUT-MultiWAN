@@ -1,0 +1,43 @@
+#!/bin/sh
+# Date-scoped local override. It never logs in, scans or modifies routes.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+mw_clock || exit 76
+case "${1:-status}" in
+ status)
+  if mw_day_allowed; then allowed=yes; else allowed=no; fi
+  printf 'date=%s allowed=%s reason=%s\n' "$MW_DATE" "$allowed" "$MW_DAY_REASON"
+  if mw_quiet_now; then echo 'mutation-policy=quiet'; else echo 'mutation-policy=active'; fi
+  for slot in native usb; do
+   if mw_night_budget_read "$slot"; then printf '%s attempts=%s blocked=%s\n' "$slot" "$MW_NCOUNT" "$MW_NBLOCK"
+   else printf '%s budget=invalid\n' "$slot"; fi
+  done
+  exit 0;;
+ quiet|allow|clear) MODE="$1";;
+ *) echo 'usage: scut-night-control status|quiet|allow [YYYY-MM-DD]|clear' >&2; exit 2;;
+esac
+[ ! -e /tmp/scut-multiwan-deploying ] || exit 75
+mw_lock night-control 8 || exit $?
+# Do not change the policy while a Portal/native transaction is in progress.
+exec 9>>/tmp/scut-multiwan-locks/portal || exit 75
+flock -n 9 || exit 75
+FILE=/etc/scut-multiwan/overnight.override
+if [ "$MODE" = clear ]; then
+ # Atomic empty replacement is deliberately not accepted by the reader;
+ # removing this one override restores calendar policy, not session state.
+ rm -f "$FILE"
+ exit $?
+fi
+STAMP="${2:-}"
+if [ -z "$STAMP" ]; then
+ STAMP="$MW_DATE"
+ if [ "$MW_SECONDS" -ge 25200 ]; then
+  NOW="$(date +%s)" || exit 1
+  STAMP="$(date -d "@$((NOW+86400))" +%F)" || exit 1
+ fi
+fi
+case "$STAMP" in 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) exit 2;; esac
+[ "$(date -d "$STAMP" +%F 2>/dev/null)" = "$STAMP" ] || exit 2
+(umask 077; mkdir -p /etc/scut-multiwan; printf '%s %s\n' "$STAMP" "$MODE" > "$FILE.$$") || exit 1
+chmod 700 /etc/scut-multiwan || exit 1
+mv "$FILE.$$" "$FILE" || exit 1
+printf 'override=%s date=%s expires=07:00\n' "$MODE" "$STAMP"

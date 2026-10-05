@@ -64,3 +64,304 @@ Repository contents:
   deployment/ — historical install/rollback scripts and checksum manifest.
 Original backups, generated bundles, real configs and one-off migration
 transformations remain local and are excluded from Git.
+
+Quiet-window revision — 2026-10-05 22:06:42 GMT+8
+
+User reports: non-holiday campus access stops 00:07–06:30; authentication
+at/after cutoff can succeed while Internet remains unavailable. On holidays
+the campus normally permits access all day. These are user observations,
+not a verified school calendar or a router-side production fault experiment.
+
+Deployed scope:
+* common.sh now gates 00:06:00 <= time < 07:00:00 (25200 seconds).
+* Existing bounded-operation margins before 00:06 are retained.
+* usb-watchdog's quiet-window comment was updated (no other USB changes).
+* Root crontab: Native FORCE_SCAN moved from 07:30 to 07:00, USB from 07:31
+  to 07:01, ECMP from 07:32 to 07:02. Regular 07:xx checks now cover the
+  earlier half hour. The Native morning log is native-watchdog-0700.log.
+* Three files were backed up, staged under /tmp, checked for non-empty
+  content/bytes/SHA-256 and shell syntax, then atomically renamed beside
+  their final targets while preserving modes. Cron received cron.update;
+  the running crond consumed the notification by 22:07:44 without restart.
+
+Dedicated backup (mode 700):
+  /root/scut-multiwan-quiet-backup-20261005
+Dedicated rollback on router (restores just these three prior files):
+  sh /root/scut-multiwan-quiet-backup-20261005/rollback.sh
+The earlier 2005 backup/rollback remains historical and has broader scope.
+Do not use the old broad rollback merely to undo this time change.
+
+Verification and limits:
+* 40 isolated regression groups passed under actual router BusyBox ash.
+  New checks cover 06:59:59 silent, 07:00:00 active, 07:29:59 active,
+  00:05:59 outside the window, and retained pre-cutoff operation margins.
+  All test network, authentication and wireless actions were mocked.
+* Installed common.sh was also tested in isolated subshells with an injected
+  clock; all expected guard return codes matched. Router clock was not changed.
+* All three installed hashes match staged candidates.
+* Production interface-bound HTTPS returned 200: Native 0.086846s, USB
+  0.088402s. Table 103 still uses weight 1:1 and pref 103 iif br-lan.
+* Wireless/network/firewall/system/Portal config and both session ledgers
+  retained the same checksums before and after this deployment.
+* No deliberate login/logout, wireless restart, scan or route-refresh command
+  was used for deployment acceptance. Routine production cron stayed running.
+* Real 07:00 morning behavior/overnight operation has not yet elapsed.
+* Current daily quiet policy still has no holiday exception. Calendar allow
+  dates, unexpected-outage fallback and manual date-scoped overrides are
+  proposed in docs/overnight-policy.md, not implemented/deployed.
+
+Local source updates are uncommitted/unpushed. Existing .gitignore changes
+were preserved. examples/crontab.quiet-window.example is a reference only.
+The deployment/candidate.sha256 file records the earlier 13-file deployment;
+it is intentionally unchanged and no longer describes these revised files.
+
+Holiday calendar source investigation — 2026-10-05 GMT+8
+
+User accepted the proposed holiday/outage-fallback approach and chose the
+national official holiday schedule as the calendar authority. Complete
+announced leave/adjustment ranges are planned; make-up workdays and unrelated
+weekends will not count automatically. Automatic updating was assessed.
+
+Read-only findings:
+* HTTPS download of the Chinese government 2026 annual notice succeeded:
+  https://www.gov.cn/zhengce/content/202511/content_7047090.htm
+* Official search-gov/data returned the matching annual notice title and
+  www.gov.cn policy URL inside searchVO.catMap.gongwen.listVO. Some unrelated
+  results are returned too; title/year/host checks are necessary.
+* The official search interface has not been established as a stable,
+  guaranteed public calendar API. Site/schema changes must fail safely.
+* No 2027 mainland annual notification was found by this investigation;
+  absence from search is not proof of future publication timing.
+* Router was queried read-only for clock, installed checksums, crontab and
+  tool availability. curl, jsonfilter and awk exist; Python/Lua were not
+  found via command -v. Existing 00:06–07:00 deployment hashes were intact.
+
+Proposed automatic update: router cron Sunday 12:13 GMT+8, fetch official
+current/next-year notices, strict full parsing/validation, lock-protected
+atomic cache replacement, retain last good calendar on failure, and default
+quiet for unknown years. Details are in docs/overnight-policy.md.
+
+This turn investigated feasibility and updated the local plan only. No
+calendar updater or holiday exception was implemented/deployed, no new cron
+entry was installed, and no Portal/wireless/routing action was performed.
+Local changes remain uncommitted/unpushed.
+
+Holiday/weekend scope correction — 2026-10-05 GMT+8
+
+User clarified that ordinary Saturday/Sunday rest days also have all-day
+campus access and count as holidays for this project. The earlier exclusion
+of unrelated weekends in the calendar investigation was an incorrect scope
+interpretation and is superseded. Ordinary rest weekends must be derived
+from weekday calculation, alongside official announced holiday ranges.
+Whether officially designated make-up work weekends also have all-day access
+is not yet confirmed; do not infer a campus rule from national work dates.
+
+User chose monthly updating. Current plan: first activation fetch, then
+monthly on day 1 at 12:13 GMT+8, for current/next-year official arrangements.
+The previous Sunday weekly suggestion is superseded. Daytime was chosen to
+avoid the known overnight outage; weekly refresh was not a requirement.
+
+An exceptional official change exists: the 2020 Spring Festival extension
+was issued separately from the annual schedule. Re-fetching only the annual
+notice would not guarantee detection of supplementary announcements; the
+plan now explicitly states that limitation and retains date-scoped overrides.
+
+Only local proposal/documentation changed. No updater/weekend/holiday
+exception was installed; production still uses daily 00:06–07:00 quiet.
+
+User subsequently confirmed make-up work weekends do lose overnight campus
+access: treat them as workdays with 00:06–07:00 quiet. The unresolved point
+above is now resolved. Date priority: official make-up workday -> quiet;
+otherwise official leave day or ordinary weekend -> overnight maintenance;
+otherwise ordinary workday -> quiet. Date-scoped manual overrides and the
+unexpected-outage fallback remain part of the proposed design.
+
+Holiday midnight interruption observation — 2026-10-05 GMT+8
+
+User reports a historical holiday incident: at 00:07 access required login,
+but successful login did not restore web access; after 00:22, a subsequent
+login did restore web access. This is user-observed evidence, not an incident
+reproduced/verified by this project. Cause and a guaranteed recovery time
+are unknown. Ordinary weekends were not separately verified for this event.
+
+Design correction in docs/overnight-policy.md:
+* On planned overnight-access days, propose a 00:06–00:25 protected phase.
+  Preserve connections; avoid repeated authentication/radio/routing changes.
+* From 00:25, check public HTTPS first. If still offline but an exact campus
+  Portal redirect and safe session prerequisites exist, allow bounded login.
+* Verify HTTPS after login; login success alone is insufficient. Proposed
+  initial limit: two authentication attempts per link per date, >=15 minutes
+  between attempts, with persistence across router reboot. An uncertain or
+  failed old-session release blocks further automatic authentication.
+* After exhausting the limit, pause recovery until existing-session HTTPS
+  succeeds or 07:00 restores daytime policy. Keep the healthy link working.
+* This replaces the HTTPS-only pause-exit proposal, which could strand a
+  recovered network that still needs authentication. 00:25 is a proposed
+  buffer after the user's 00:22 observation, not a proven school schedule.
+
+Only local documentation changed; no production script, cron or session was
+modified. Daily 00:06–07:00 quiet remains the deployed behavior. Monthly
+official updates, ordinary rest weekend exceptions and bounded holiday
+recovery remain unimplemented/undeployed.
+
+Holiday/nighttime Native variation — 2026-10-05 GMT+8
+
+User reports that on official holidays and ordinary rest weekends, the best
+Native frequency band is very likely to change during 00:06–07:00, with
+more switching needed than during daytime. This was not live-scanned or
+reproduced by this turn. No fixed band/BSSID is inferred from this report.
+
+Local owning-source inspection:
+* native-watchdog: normal complete comparison every 14400 seconds, or weak
+  RSSI <= -70 dBm over three watchdog rounds.
+* native-best: candidate choice primarily by RSSI, HYSTERESIS=6 dB.
+  The current survey can actively scan on an in-use STA; it is not passive
+  sampling or a measurement of candidate Internet throughput.
+
+Proposed plan revision:
+* Preserve 00:06–00:25 authentication/switch/scan protection. Permit only
+  low-cost health sampling and safe ECMP health convergence in this phase.
+* First Native comparison after 00:25; where recovery is needed, combine
+  target selection with recovery rather than authenticating old then new.
+* During allowed holiday/weekend nights: light health checks ~5 minutes,
+  full comparison ~15 minutes, earlier assessment for sustained degradation.
+* Candidate improvement normally requires confirmation; optimization switch
+  cooldown ~30 minutes. Failed scans/switches back off. Candidate RSSI alone
+  does not establish actual public connectivity or throughput.
+* Earlier two-login-per-link-per-night proposal is superseded: cap failed
+  recovery attempts, separately rate-limit verified optimization switches.
+  Reserve capacity for safe rollback; never abort mid-transaction merely
+  because an attempt quota was reached. Existing Portal lock/session
+  release/rollback safeguards remain mandatory.
+* USB remains available where healthy, without claiming seamless migration
+  of established Native connections. QCA stays phy0/phy2, MCS7/MCS9.
+
+These are initial untested policy parameters, documented in
+docs/overnight-policy.md. Production scripts, cron, sessions, radios and
+routes were not modified. The daily 00:06–07:00 quiet deployment remains.
+
+Morning-check preference — 2026-10-05 GMT+8
+
+User explicitly declined increased overnight inspection frequency because
+most of 00:06–07:00 is spent sleeping. They prefer a forced check at 07:00
+before waking. This supersedes the preceding proposed 5-minute additional
+night polling, 15-minute surveys, 00:25 proactive optimization and the
+associated new optimization cooldown/budget design. Necessary bounded
+fault recovery remains in the holiday proposal; no routine overnight
+optimization frequency increase is planned.
+
+Read-only production check at 22:37:28 confirmed the existing daily entry:
+  0 7 * * * FORCE_SCAN=1 /usr/bin/native-watchdog >/tmp/native-watchdog-0700.log 2>&1
+USB and ECMP remain scheduled at 07:01 and 07:02. No cron change was needed.
+Installed native-watchdog/native-best/common.sh hashes match local source.
+FORCE_SCAN bypasses the four-hour interval on the normal maintenance path;
+existing rate/connectivity/recovery failures may still stop that path safely.
+The task forces evaluation, not an unconditional switch. Current switching
+uses the existing >=6 dB candidate RSSI advantage and Portal/session/HTTPS
+verification safeguards, rather than proof of optimal throughput.
+
+Local proposal was simplified accordingly. The nightly recovery-attempt
+limit is scoped before 07:00; it must not prevent the daytime morning task
+or interrupt a needed safe rollback. Calendar updates/holiday and weekend
+exceptions/night recovery remain unimplemented and undeployed. Production
+was not modified, and real 07:00 behavior has not elapsed in this check.
+
+
+Holiday/weekend policy deployment — 2026-10-05 23:20:04 GMT+8
+
+This deployment supersedes the earlier undeployed proposal entries above.
+User explicitly requested deployment after choosing monthly official updates,
+ordinary rest weekends as allowed dates, make-up weekends as quiet dates,
+and daily 07:00 forced Native checking without overnight optimization.
+
+Deployed scope (18 files, deployment/holiday-20261005/files.list):
+* Official current/next-year updater, strict calendar parser/checker and
+  2026 calendar (33 leave dates, 6 make-up work dates). Actual source:
+  https://www.gov.cn/zhengce/zhengceku/202511/content_7047091.htm
+  No exact 2027 annual notice was found; no invented next-year cache.
+* Monthly cron day 1 12:13 GMT+8; unknown/invalid calendar fails quiet,
+  failed update preserves the last validated version. Separate emergency
+  announcements are not guaranteed detected by annual-notice re-fetching.
+* Workdays and make-up weekends quiet 00:06–07:00. Official leave/rest
+  weekends protect authentication/radio actions 00:06–00:25, with route-only
+  health checks 00:08/00:23; bounded recovery follows at ~15-minute intervals.
+* No overnight complete scanning, optimization switching or wifi restart.
+  Missing interface/association is deferred until 07:00, retaining other WAN.
+* Recovery requires exact SCUT redirect and valid associated interface/session.
+  Per-link/date durable cap 2, >=900-second cooldown; unsuccessful or uncertain
+  old release blocks further night attempts. HTTPS 200 required after login.
+  Night cap/block does not prevent the 07:00 daytime maintenance path.
+* Date-scoped quiet/allow/clear controls under actual Portal lock; default
+  target is today before 07:00, next day afterwards, expires target 07:00.
+* Daily Native FORCE_SCAN 07:00, USB 07:01, ECMP 07:02 retained. Forced
+  evaluation is conditional on preceding safe recovery, not forced switching.
+
+Deployment and rollback:
+* Initial install preflight exited before mutation because router BusyBox
+  flock lacks -w. Installer/rollback now use bounded flock -n retry loops.
+* Dedicated backup (700): /root/scut-multiwan-holiday-backup-20261005
+  Dedicated rollback:
+    sh /root/scut-multiwan-holiday-backup-20261005/rollback.sh
+  It restores this deployment's prior targets and removes only new targets
+  recorded absent at backup; existing Portal journals are preserved.
+* Staged nonempty files/byte counts, SHA-256, BusyBox ash syntax and baseline
+  drift checked; replacements used same-filesystem temporary file + rename
+  under deployment marker and global Portal lock. Cron installed last.
+* Independent 300-second auto rollback armed before replacement; all checks
+  passed and armed marker removed at 23:20:47. Deployment guard cleared.
+  crond consumed cron.update without service restart.
+
+Validation distinctions:
+* 71 isolated regression groups passed on actual router BusyBox ash, all
+  network/Portal/radio/route test operations mocked. Includes auth-success
+  without Internet, cooldown across process restarts, rejected old release,
+  corrupt state, calendar failures and policy-update/Portal-lock races.
+* Actual router HTTPS official calendar download/parse succeeded in isolated
+  test root. Post-install production updater 2026 verified unchanged cache.
+* Installed guards tested with injected subshell clock at 00:24:59/00:25,
+  06:59:59/07:00, holiday/make-up/rest weekend/unknown year; router clock unchanged.
+* 18 installed hashes match staged manifests; original wireless, network,
+  firewall, system, credentials and existing native/usb.session byte-identical.
+* Native phy0-sta0 HTTPS 200 0.111767s; USB phy3-sta0 HTTPS 200 0.080400s.
+  ECMP table/pref 103: iif br-lan, dual weight 1:1. No MAC/BSSID/config change.
+* No deliberate live logout, roaming, radio switch or fault injection.
+  Real overnight recovery and next 07:00 behavior remain unobserved.
+* Local docs/handoff updated. Existing unrelated changes preserved;
+  no commit or push performed.
+
+
+QCA RX association initialization grace — 2026-10-05 23:31:44 GMT+8
+
+User reports radio2 RX values may initially be zero for about ten seconds;
+user authorized implementation/deployment if beneficial. Inspection confirmed
+RX HE-MCS 0 previously counted as a poor sample and could unnecessarily drop
+MCS9 to MCS7, followed by the existing five-minute promotion requirement.
+
+Deployed single target /usr/bin/fix-qca-sta-rate:
+* Driver connected time <15 seconds at sampling start suppresses RX-based
+  downgrade and promotion for that round, resets inherited good-state timer.
+  No added sleep; same-BSSID reassociation is covered by driver association age.
+* Missing/malformed age falls back to prior conservative behavior. Gateway
+  loss, actual TX-failure burst, unknown-rate MCS7 initialization, MCS9 upper
+  cap, existing public verification and phy3 exclusion remain intact.
+* 81 isolated BusyBox ash groups passed, including age 0/10/14/15,
+  missing/malformed age, radio2, same-BSSID promotion reset, gateway loss
+  and TX failure during grace. Network/radio/auth test actions mocked.
+* Candidate bytes 12200, SHA-256 and ash syntax checked before same-filesystem
+  atomic replacement. Portal and both QCA device locks held, deployment
+  marker used; dedicated rollback and restore-on-verification-failure provided.
+* Backup mode 700: /root/scut-multiwan-rx-warmup-backup-20261005
+  Dedicated router rollback:
+    sh /root/scut-multiwan-rx-warmup-backup-20261005/rollback.sh
+  Local deployment records: deployment/rx-warmup-20261005/.
+* Installed SHA-256:
+  99bc84ef538b14d057167d3e390a1020a2f43a3da2b6a2c268cf73e17f7623ef
+* Wireless/network/firewall/system/auth config, native/usb.session and cron
+  byte-identical before/after deployment. No deliberate radio reassociation,
+  Portal logout/login, service restart or live rate adjustment was performed.
+* Real first-ten-second zero-RX scenario not reproduced; the grace logic was
+  verified in isolation and the installed target verified read-only.
+  Existing unrelated local changes preserved; no commit/push performed.
+* Read-only acceptance at 23:32:47: installed/rollback ash syntax and
+  installed hash passed; deployment marker cleared; Native HTTPS 200
+  0.092290s, USB HTTPS 200 0.079634s.

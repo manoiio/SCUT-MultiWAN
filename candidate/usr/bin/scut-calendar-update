@@ -1,0 +1,71 @@
+#!/bin/sh
+# Download data only. Never source/execute an official page or search response.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+mw_clock || exit 76
+# Updates are daytime only, even on holidays or manually allowed nights.
+[ "$MW_SECONDS" -ge 25200 ] || exit 76
+[ ! -e /tmp/scut-multiwan-deploying ] || exit 75
+mw_lock calendar-update 8 || exit $?
+case "${1:-}" in '' ) YEARS="$MW_YEAR $((MW_YEAR + 1))";; 20[0-9][0-9]) YEARS="$1";; *) exit 2;; esac
+BASE="$(mktemp -d /tmp/scut-calendar.XXXXXX)" || exit 1
+trap 'rm -rf "$BASE"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+valid_url() { printf '%s\n' "$1" | LC_ALL=C awk '$0 ~ /^https:\/\/www\.gov\.cn\/zhengce\/(content|zhengceku)\/[0-9]+\/content_[0-9]+\.htm$/ {ok=1} END {exit !ok}'; }
+fetch() {
+ curl --silent --show-error --fail --proto '=https' --proto-redir '=https' \
+  --location --max-redirs 3 --connect-timeout 5 --max-time 20 \
+  --max-filesize 262144 --output "$2" --write-out '%{url_effective}' "$1" 2>/dev/null
+}
+RC=0
+for YEAR in $YEARS; do
+ QUERY="国务院办公厅关于${YEAR}年部分节假日安排的通知"
+ if ! curl --silent --fail --proto '=https' --connect-timeout 5 --max-time 20 \
+  --max-filesize 262144 --get --data-urlencode "q=$QUERY" \
+  --data-urlencode 't=zhengce' --data-urlencode 'p=0' --data-urlencode 'n=10' \
+  --output "$BASE/search.json" https://sousuo.www.gov.cn/search-gov/data; then
+  logger -t scut-calendar "$YEAR official search unavailable; cache retained"; RC=1; continue
+ fi
+ if [ "$(jsonfilter -i "$BASE/search.json" -e '@.code' 2>/dev/null)" != 200 ]; then
+  logger -t scut-calendar "$YEAR invalid official search response; cache retained"; RC=1; continue
+ fi
+ URL=; I=0
+ while [ "$I" -lt 20 ]; do
+  TITLE="$(jsonfilter -i "$BASE/search.json" -e "@.searchVO.catMap.gongwen.listVO[$I].title" 2>/dev/null | sed 's/<[^>]*>//g' | tr -d ' \r\n\t')"
+  if [ "$TITLE" = "$QUERY" ]; then
+   URL="$(jsonfilter -i "$BASE/search.json" -e "@.searchVO.catMap.gongwen.listVO[$I].url" 2>/dev/null)"
+   case "$URL" in http://www.gov.cn/*) URL="https://${URL#http://}";; esac
+   valid_url "$URL" && break
+   URL=
+  fi
+  I=$((I+1))
+ done
+ if [ -z "$URL" ]; then
+  logger -t scut-calendar "$YEAR annual notice not found; cache retained"; continue
+ fi
+ EFFECTIVE="$(fetch "$URL" "$BASE/notice.html")" || { logger -t scut-calendar "$YEAR official download failed; cache retained"; RC=1; continue; }
+ valid_url "$EFFECTIVE" || { logger -t scut-calendar "$YEAR unexpected redirect; cache retained"; RC=1; continue; }
+ if ! LC_ALL=C awk -v year="$YEAR" -v source="$EFFECTIVE" \
+    -f /usr/lib/scut-multiwan/calendar-parse.awk "$BASE/notice.html" > "$BASE/calendar" ||
+    ! LC_ALL=C awk -v year="$YEAR" -f /usr/lib/scut-multiwan/calendar-check.awk "$BASE/calendar"; then
+  logger -t scut-calendar "$YEAR annual notice validation failed; cache retained"; RC=1; continue
+ fi
+ (umask 077; mkdir -p /etc/scut-multiwan) || exit 1
+ chmod 700 /etc/scut-multiwan || exit 1
+ DEST="/etc/scut-multiwan/calendar-$YEAR.txt"
+ # No flash rewrite if only awk iteration order changed.
+ sort "$BASE/calendar" > "$BASE/new.sorted"
+ if [ -f "$DEST" ]; then
+  sort "$DEST" > "$BASE/old.sorted"
+  if cmp -s "$BASE/new.sorted" "$BASE/old.sorted"; then
+   logger -t scut-calendar "$YEAR verified unchanged"; continue
+  fi
+ fi
+ TMP="$DEST.$$"
+ (umask 077; cat "$BASE/calendar" > "$TMP") || exit 1
+ LC_ALL=C awk -v year="$YEAR" -f /usr/lib/scut-multiwan/calendar-check.awk "$TMP" || exit 1
+ if [ -f "$DEST" ]; then cp -p "$DEST" "$DEST.previous.$$" && mv "$DEST.previous.$$" "$DEST.previous" || exit 1; fi
+ mv "$TMP" "$DEST" || exit 1
+ logger -t scut-calendar "$YEAR official calendar installed"
+done
+exit "$RC"

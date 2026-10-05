@@ -19,10 +19,10 @@ get_network() {
         awk '$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$/ {print $1; exit}'
 }
 online_confirm() {
-    mw_require_active 16 || return $?
+    mw_require_route 16 || return $?
     mw_online "$1" 6 && return 0
     sleep 1
-    mw_require_active 8 || return $?
+    mw_require_route 8 || return $?
     mw_online "$1" 6
 }
 remove_policy() {
@@ -53,11 +53,11 @@ case "$1" in
     remove) MODE=remove;;
     *) echo "usage: $0 [apply|status|remove]" >&2; exit 2;;
 esac
-mw_require_active 40 || exit $?
+mw_require_route 40 || exit $?
 mw_lock dualwan-refresh 8 || exit $?
 # Avoid publishing a partially completed Portal/radio transition. The final
 # refresh of a Native transaction reuses its inherited FD 9.
-mw_portal_lock 0 || exit $?
+mw_portal_lock 0 route || exit $?
 if [ "$MODE" = remove ]; then remove_policy; exit $?; fi
 sysctl -qw net.ipv4.fib_multipath_hash_policy=1 || exit 1
 sysctl -qw net.ipv4.conf.all.rp_filter=0 || exit 1
@@ -89,7 +89,7 @@ if [ -n "$USB_DEV" ]; then
         if mw_ipv4 "$USB_GW" && [ -n "$USB_NET" ]; then USB_OK=1; fi
     fi
 fi
-mw_require_active 10 || exit $?
+mw_require_route 10 || exit $?
 if [ "$NATIVE_OK" -eq 0 ] && [ "$USB_OK" -eq 0 ]; then
     fail_policy 'no healthy WAN with a usable route'
 fi

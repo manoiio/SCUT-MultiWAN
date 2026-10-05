@@ -1,13 +1,15 @@
 #!/bin/sh
 
 . /usr/lib/scut-multiwan/common.sh || exit 1
+# Holiday nights use bounded authentication recovery, never routine optimization.
+if mw_night_window; then exec /usr/bin/scut-night-watchdog usb; fi
 
 
 log() {
     logger -t usb-watchdog "$*"
 }
 
-# 00:06 - 07:29 完全静默
+# 00:06 <= 当前时间 < 07:00 完全静默
 
 quiet_now() { mw_quiet_now; }
 

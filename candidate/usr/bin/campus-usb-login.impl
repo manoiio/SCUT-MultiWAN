@@ -95,7 +95,13 @@ fi
     exit 1
 }
 
-mw_prepare_login usb "$DEV" "$IP" || exit $?
+mw_night_claim usb || exit $?
+if mw_prepare_login usb "$DEV" "$IP"; then :
+else
+    PREPARE_RC=$?
+    mw_night_block usb || true
+    exit "$PREPARE_RC"
+fi
 mw_require_active 20 || exit $?
 
 RESP="$(

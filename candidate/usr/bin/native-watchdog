@@ -1,6 +1,8 @@
 #!/bin/sh
 
 . /usr/lib/scut-multiwan/common.sh || exit 1
+# Holiday nights use bounded authentication recovery, never routine optimization.
+if mw_night_window; then exec /usr/bin/scut-night-watchdog native; fi
 
 SCAN_INTERVAL=14400
 WEAK_SIGNAL=-70

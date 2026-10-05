@@ -2,7 +2,7 @@
 
 . /usr/lib/scut-multiwan/common.sh || exit 1
 
-mw_require_active 120 || exit $?
+mw_require_scan 120 || exit $?
 mw_lock native-best 8 || exit $?
 
 SSID="${1:-scut-student}"

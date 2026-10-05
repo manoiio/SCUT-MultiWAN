@@ -1,26 +1,93 @@
 #!/bin/sh
 # Shared BusyBox ash helpers. Locks are stable files: never unlink them.
 
-mw_quiet_now() {
-    local clock h m s
-    clock="$(date '+%H %M %S')" || return 0
-    read -r h m s <<EOF
+# Read one local GMT+8 clock snapshot; an uninitialized/invalid clock fails closed.
+mw_clock() {
+    local clock weekday h m sec extra
+    clock="$(date '+%Y-%m-%d %u %H %M %S')" || return 1
+    read -r MW_DATE weekday h m sec extra <<EOF
 $clock
 EOF
-    h="${h#0}"; m="${m#0}"; s="${s#0}"
-    MW_SECONDS=$((h * 3600 + m * 60 + s))
-    [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 27000 ]
+    case "$MW_DATE" in 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 1;; esac
+    MW_YEAR="${MW_DATE%%-*}"
+    [ "$MW_YEAR" -ge 2026 ] && [ -z "$extra" ] || return 1
+    case "$weekday" in [1-7]) ;; *) return 1;; esac
+    case "$h:$m:$sec" in *[!0-9:]*) return 1;; esac
+    [ -n "$h" ] && [ -n "$m" ] && [ -n "$sec" ] || return 1
+    h="${h#0}"; m="${m#0}"; sec="${sec#0}"
+    [ "${h:-0}" -le 23 ] && [ "${m:-0}" -le 59 ] && [ "${sec:-0}" -le 59 ] || return 1
+    MW_WEEKDAY="$weekday"
+    MW_SECONDS=$((${h:-0} * 3600 + ${m:-0} * 60 + ${sec:-0}))
 }
 
-# 76 means deferred by the quiet period (including a bounded-operation margin).
+mw_night_window() {
+    mw_clock || return 0
+    [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ]
+}
+
+# Weekends require the year's valid workday exceptions; unknown years are quiet.
+mw_day_allowed() {
+    local stamp mode extra kind next
+    MW_DAY_REASON=unknown-calendar
+    if [ -e /etc/scut-multiwan/overnight.override ]; then
+        read -r stamp mode extra < /etc/scut-multiwan/overnight.override || return 1
+        case "$stamp:$mode:$extra" in 20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]:quiet:|20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]:allow:) ;; *) MW_DAY_REASON=invalid-override; return 1;; esac
+        if [ "$stamp" = "$MW_DATE" ] && [ "$MW_SECONDS" -lt 25200 ]; then
+            MW_DAY_REASON="override-$mode"; [ "$mode" = allow ]; return $?
+        fi
+    fi
+    kind="$(LC_ALL=C awk -v year="$MW_YEAR" -v day="$MW_DATE" \
+        -f /usr/lib/scut-multiwan/calendar-check.awk \
+        "/etc/scut-multiwan/calendar-$MW_YEAR.txt" 2>/dev/null)" || return 1
+    case "$kind" in W) MW_DAY_REASON=make-up-workday; return 1;; H) MW_DAY_REASON=official-holiday; return 0;; esac
+    # A next-year notice may include the preceding December's leave dates.
+    next=$((MW_YEAR+1))
+    kind="$(LC_ALL=C awk -v year="$next" -v day="$MW_DATE" \
+        -f /usr/lib/scut-multiwan/calendar-check.awk \
+        "/etc/scut-multiwan/calendar-$next.txt" 2>/dev/null)" || kind=
+    [ "$kind" != W ] || { MW_DAY_REASON=make-up-workday; return 1; }
+    [ "$kind" != H ] || { MW_DAY_REASON=official-holiday; return 0; }
+    case "$MW_WEEKDAY" in 6|7) MW_DAY_REASON=rest-weekend; return 0;; esac
+    MW_DAY_REASON=ordinary-workday
+    return 1
+}
+
+# Ordinary/work weekends: 00:06–07:00 quiet. Allowed dates: protect to 00:25.
+mw_quiet_now() {
+    mw_clock || return 0
+    [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ] || return 1
+    mw_day_allowed || return 0
+    [ "$MW_SECONDS" -lt 1500 ]
+}
+
+# 76 is a policy deferral; 75 is a lock/deployment/unsafe-state deferral.
 mw_require_active() {
     [ ! -e /tmp/scut-multiwan-deploying ] || return 75
     mw_quiet_now && return 76
     if [ "$MW_SECONDS" -lt 360 ] &&
-       [ $((360 - MW_SECONDS)) -le "${1:-30}" ]; then
-        return 76
-    fi
+       [ $((360 - MW_SECONDS)) -le "${1:-30}" ]; then return 76; fi
     return 0
+}
+
+# Health probes/routing never authorize Portal, wireless recovery or scans.
+mw_require_route() {
+    [ ! -e /tmp/scut-multiwan-deploying ] || return 75
+    mw_clock || return 76
+    if [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ]; then
+        mw_day_allowed || return 76
+        return 0
+    fi
+    mw_require_active "${1:-30}"
+}
+
+mw_require_scan() {
+    mw_require_active "${1:-300}" || return $?
+    # User sleeps overnight: complete comparisons are scheduled at 07:00.
+    [ "$MW_SECONDS" -lt 360 ] || [ "$MW_SECONDS" -ge 25200 ] || return 76
+}
+
+mw_guard() {
+    case "${1:-active}" in active) mw_require_active;; route) mw_require_route;; *) return 2;; esac
 }
 
 mw_uptime() {
@@ -70,32 +137,92 @@ mw_lock() {
 # FD 9 is inherited by every child in a Portal transaction. Nested wrappers
 # reuse the SAME open file description; an environment flag cannot bypass it.
 mw_portal_lock() {
-    local path waited limit
+    local path waited limit kind
     path=/tmp/scut-multiwan-locks/portal
+    kind="${2:-active}"
     if [ "$(readlink /proc/self/fd/9 2>/dev/null)" = "$path" ]; then
         flock -n 9 || return 75
-        return 0
+        mw_guard "$kind"
+        return $?
     fi
     (umask 077; mkdir -p /tmp/scut-multiwan-locks) || return 1
     chmod 700 /tmp/scut-multiwan-locks || return 1
     exec 9>>"$path" || return 1
     waited=0; limit="${1:-30}"
     while ! flock -n 9; do
-        mw_require_active || return $?
+        mw_guard "$kind" || return $?
         [ "$waited" -lt "$limit" ] || return 75
         sleep 1
         waited=$((waited + 1))
     done
-    mw_require_active
+    mw_guard "$kind"
+}
+
+mw_https() {
+    local code
+    code="$(curl -4 --interface "$1" --silent --fail --head \
+        --max-time "${3:-8}" --output /dev/null --write-out '%{http_code}' \
+        "$2" 2>/dev/null)" || return 1
+    [ "$code" = 200 ]
 }
 
 mw_online() {
-    local code
-    mw_require_active $((${2:-8} + 2)) || return $?
-    code="$(curl -4 --interface "$1" --silent --fail --head \
-        --max-time "${2:-8}" --output /dev/null --write-out '%{http_code}' \
-        https://www.baidu.com/ 2>/dev/null)" || return 1
-    [ "$code" = 200 ]
+    mw_require_route $((${2:-8} + 2)) || return $?
+    mw_https "$1" https://www.baidu.com/ "${2:-8}" && return 0
+    # Only the new holiday night policy uses an independent fallback target.
+    if mw_night_window; then
+        mw_require_route $((${2:-8} + 2)) || return $?
+        mw_https "$1" https://www.taobao.com/ "${2:-8}"
+        return $?
+    fi
+    return 1
+}
+
+# Root-owned budget records, separate from Portal session journals.
+mw_night_budget_read() {
+    local stored extra
+    case "$1" in native|usb) ;; *) return 2;; esac
+    read -r stored MW_NCOUNT MW_NLAST MW_NBLOCK extra < "/etc/scut-multiwan/$1.night-budget" || return 75
+    case "$stored" in none|20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 75;; esac
+    case "$MW_NCOUNT:$MW_NLAST:$MW_NBLOCK" in *[!0-9:]*) return 75;; esac
+    [ -n "$MW_NCOUNT" ] && [ -n "$MW_NLAST" ] && [ -z "$extra" ] || return 75
+    [ "$MW_NCOUNT" -le 2 ] && [ "$MW_NBLOCK" -le 1 ] || return 75
+    if [ "$stored" != "$MW_DATE" ]; then
+        [ "$stored" = none ] || [ "$stored" \< "$MW_DATE" ] || return 75
+        MW_NCOUNT=0; MW_NLAST=0; MW_NBLOCK=0
+    fi
+}
+
+mw_night_budget_write() {
+    local file tmp
+    file="/etc/scut-multiwan/$1.night-budget"; tmp="$file.$$"
+    (umask 077; printf '%s %s %s %s\n' "$MW_DATE" "$MW_NCOUNT" "$MW_NLAST" "$MW_NBLOCK" > "$tmp") || return 75
+    mv "$tmp" "$file" || return 75
+}
+
+mw_night_claim() {
+    local now
+    mw_clock || return 76
+    [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ] || return 0
+    mw_require_active 20 || return $?
+    [ "$(readlink /proc/self/fd/9 2>/dev/null)" = /tmp/scut-multiwan-locks/portal ] && flock -n 9 || return 75
+    mw_night_budget_read "$1" || return $?
+    [ "$MW_NBLOCK" -eq 0 ] && [ "$MW_NCOUNT" -lt 2 ] || return 76
+    now="$(date +%s)" || return 75
+    case "$now" in ''|*[!0-9]*) return 75;; esac
+    [ "$now" -ge 1760000000 ] || return 75
+    [ "$MW_NLAST" -eq 0 ] || [ $((now - MW_NLAST)) -ge 900 ] || return 76
+    MW_NCOUNT=$((MW_NCOUNT+1)); MW_NLAST="$now"
+    # Persist BEFORE releasing an old session or sending any login request.
+    mw_night_budget_write "$1"
+}
+
+mw_night_block() {
+    mw_clock || return 75
+    [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ] || return 0
+    mw_night_budget_read "$1" || return $?
+    MW_NBLOCK=1
+    mw_night_budget_write "$1"
 }
 
 mw_scUT_redirect() {

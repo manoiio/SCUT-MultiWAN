@@ -919,7 +919,7 @@ case "$1" in
     survey) ;;
     *) echo "Usage: native-best status|survey|apply|auto|switch radio0|radio2"; exit 2;;
 esac
-mw_require_active 300 || exit $?
+mw_require_scan 300 || exit $?
 mw_lock native-best 8 || exit $?
 trap cleanup EXIT
 trap 'exit 130' INT

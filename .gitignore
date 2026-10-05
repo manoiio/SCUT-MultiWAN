@@ -19,3 +19,6 @@ campus-portal.conf
 *.key
 id_rsa*
 id_ed25519*
+
+# Local agent handoff contains the user-provided SSH password
+/AGENTS.md
