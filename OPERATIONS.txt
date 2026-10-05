@@ -716,3 +716,252 @@ Another server challenge at 02:14:42 completed heartbeat at 02:14:49.
 Temporary override and armed marker absent. Router lacks stat; permission
 verification repeated with ls -ld showing backup drwx------ (700). Final
 14 target + root cron hashes saved in final-installed.sha256.
+
+
+Resource/capacity read-only review — 2026-10-06 GMT+8
+
+User requested a performance, module storage/cleanup and available-memory review,
+then clarified the target is approximately 300 Mbps aggregate downstream across
+the three WANs. Read README/operations and preserved the existing dirty main
+checkout. Resource/network observations at 02:18–02:21 were LIGHT LOAD, not a
+300 Mbps forwarding benchmark. Subsequent SHA256 checks of all 27 candidate
+text targets matched their installed router counterparts.
+
+Four Cortex-A53 cores, max 1.3824 GHz, schedutil; a 30-second CPU-counter delta
+showed about 0.77% aggregate active time, busiest core about 1.30%. MemTotal
+372348 KiB on 512 MiB physical RAM; MemAvailable observed 122568–131320 KiB,
+including fluctuations and recovery, not evidence of a proven leak. Overlay
+remaining about 102.9 MiB, /tmp used about 5 MiB. Log ring configured 128 KiB,
+no log_file; health state about 52 KiB, Native/QCA state about 4 KiB each,
+durable scut-multiwan state/calendar about 28 KiB. Conntrack 88–103/23552,
+temperatures about 54.9–56.9 C. No visible kernel OOM/page-allocation-failure,
+firmware-restart or conntrack-full record. The single USB reset was at boot
+~14s, not evidence of ongoing instability. PSI/slabinfo and relevant vmstat
+pressure counters unavailable; tc absent, no installation attempted.
+
+Both public HEAD targets returned 200 on each WAN, about 98–209ms. Each gateway
+had 5/5 ICMP replies; average Native/USB/wired about 2.65/2.05/1.06ms. Ready
+engine remains PID 18410/starttime 3025749. Native TX9/RX11, USB TX/RX11;
+wired 100Mbps/full; table103/iif br-lan/1:1:1 and hash/rp_filter retained.
+packet_steering=1 with RPS mappings; actual nft rules contain no flowtable or
+flow-add rules. Installed qca_nss_dp alone is not hardware-NAT acceptance.
+
+Reviewed bounded RAM state, cyclic syslog, timeout/scan traps, persistent
+transaction writes and calendar response cap. No urgent cleanup needed;
+test/deployment remnants are only a few MiB and were retained. Portal response
+bodies lack an explicit byte cap; recommended bounded response handling with
+unknown-outcome safety, not implemented. Session/budget/lock files must never
+be swept by a generic cleaner. Recommended LAN-side multistream staged and
+sustained-load measurement before software-offload/SQM/driver decisions.
+
+Relevant upstream report: https://github.com/openwrt/openwrt/issues/24154
+describes ath11k RX-pool memory exhaustion under load on MX4200v1, OpenWrt
+25.12.4/backports6.18.26. Current device is25.12.5/backports6.18.26; relevance
+does not establish this device is affected or has reproduced the condition.
+No third-party patch, memory-carveout edits, swap/zram, cache flush or reboot.
+
+Detailed assessment and 300Mbps test criteria in
+docs/resource-capacity-review-20261006.md. Only this document, README and this
+operations appendix changed locally; no production mutation, cleanup, scan,
+service control, authentication/logout, full-load test, commit or push.
+Historical mock results were not rerun and are not throughput acceptance.
+
+
+Wired 100 Mbps negotiation read-only diagnosis — 2026-10-06 02:33 GMT+8
+
+User asked whether the current wired negotiation is a school restriction.
+Read-only sysfs and ubus network.device status confirm wan carrier up,
+100 Mbps full duplex, autonegotiation enabled. Local link-supported and
+link-advertising include 1000baseT-F; link-partner-advertising lists only
+10baseT-H/F and 100baseT-H/F, with no 1000baseT-F. No explicit speed/duplex/
+autoneg setting appeared in the selected UCI network fields. Kernel records
+the WAN link coming up at 100 Mbps; LAN ports have recorded 1000 Mbps.
+At inspection, WAN RX/TX errors, CRC errors and collisions were zero;
+RX drops were present and do not establish a cable fault or its cause.
+
+Evidence points to the directly connected upstream peer currently offering
+only 10/100 modes, rather than a local WAN capability limit. A 100-only peer,
+administratively restricted peer advertisement, or physical-link/downshift
+behavior cannot be distinguished from this endpoint alone. This is not proof
+of an account bandwidth policy or intentional school restriction. Upstream
+switch-port configuration and a known-good four-pair cable comparison would
+resolve remaining uncertainty. No cable test, forced speed, renegotiation,
+service control, authentication, package installation or throughput test was
+performed. ethtool/phytool/mii-tool are absent; ubus supplied advertisement
+data without installing tools. Existing local changes retained; no commit/push.
+
+
+Portal response-limit candidate — 2026-10-06 GMT+8
+
+User requested a response-size limit with no adverse effect on authentication.
+Read current README/operations and retained existing document changes. At
+03:01:22 router curl was8.22.0; common and four production impl hashes matched
+the previous baseline. No production Portal calls were made for sampling.
+
+Added --max-filesize1048576 (1MiB) to the four Native/USB HTTP login/logout
+requests. Capture curl exit immediately, reject incomplete responses even if
+the partial body contains result=1, retain session journals and avoid retries
+or subsequent login after unconfirmed release. Request fields/URLs, stdin
+passwords, interface/TLS/timeouts, full-response success tests and HTTPS checks
+remain unchanged. Wired protocol/service, global guards/locks, budgets, routes,
+wireless/cron and production configuration were not changed. Normal complete
+responses at/below the boundary remain accepted; no raw body logging added.
+
+Full139 isolated groups passed in actual router BusyBox ash: existing113 plus
+26 response regressions with fake credentials and mock network commands. Added
+an optional isolated remote-root argument to the suite builder; this run used
+/tmp/scut-multiwan-tests-portal-limit-20261006, not the prior experience tree.
+Generated synthetic bodies/tar stay in ignored local test output.
+
+Actual router curl tested against a Mac loopback-only synthetic HTTP server via
+SSH reverse-forwarding, not against production auth. Seven checks passed:
+1KiB and exact1MiB complete bodies rc0, byte-identical to unrestricted output;
+known length1MiB+1 rc63/0 captured bytes; chunked and no-length1MiB+1 rc63,
+capture bounded to1MiB; early disconnect rc18 and timeout rc28 with21-byte
+success-looking fragments. Mock script tests retain ledgers for those errors.
+The loopback server and temporary SSH forwarding were stopped after testing.
+
+Only local candidates/tests/docs modified, no deployment, authentication,
+logout, scan, service restart, quota/session cleanup, Git commit or push.
+Any hard cap could reject a future legitimate response above it; 1MiB is a
+conservative engineering limit, not a measured maximum of normal campus
+responses. Absolute zero impact cannot be proved from these tests. Preserving
+the current live session took precedence over inducing login/logout samples.
+Implementation and deployment boundary: docs/portal-response-limit-20261006.md.
+Final read-only check: all four production hashes still baseline, three bound
+Bilibili HEAD responses200, wired-ready remains18410/3025749. Prepared local
+deployment/portal-response-limit-20261006/ manifests/installer/rollback with
+shell syntax checks only; no backup creation or installer execution. Deployment
+approval remains pending because a hard cap cannot prove absolute zero effect
+on arbitrary future legitimate server responses above1MiB.
+
+
+Portal response-limit production deployment — 2026-10-06 GMT+8
+
+User explicitly accepted the1MiB boundary and authorized deployment of all four
+HTTP Portal impl entries. No authorization to induce real authentication was
+needed/used: no login/logout request or service restart performed.
+
+Staged40,960-byte package in /tmp/scut-portal-response-limit-20261006; verified
+all candidate hashes, nonempty/byte counts3814/3811/2643/2534 and actual shell
+syntax. First preflight failed because this BusyBox flock lacks -w; exited75
+before backup creation or any production replacement. Read-only check proved
+four old hashes intact and backup absent; updated installer/rollback to bounded
+flock -n polling (at most30s) and repeated actual syntax validation. Then
+installer acquired the real Portal lock, validated baseline, made dedicated
+backup /root/scut-multiwan-portal-limit-backup-20261006 (700), and replaced only
+four scripts via same-filesystem temporary files and atomic rename.
+
+03:11:49 installation finished. 03:12:27 follow-up: all four installed hashes
+match candidate; device-side preserved checksums passed for network/wireless/
+firewall/system/DHCP, campus auth and wired config, root cron, all three session
+and night-budget files. No real config/credential contents copied to Mac.
+Six bound Bilibili/JD HEAD probes were200, about71–118ms; ready engine identity
+18410/3025749 valid and unchanged. Table103/pref103 retain iif br-lan and1:1:1.
+loadavg .03/.12/.08, MemAvailable133648KiB. Current connectivity unaffected in
+this observation; next genuine authentication and arbitrary future response
+sizes remain unverified. No active-session disconnect experiment performed.
+
+Manual rollback: sh /root/scut-multiwan-portal-limit-backup-20261006/rollback.sh
+Only four text entries, under the same Portal lock, no auth/service actions.
+Backup original hashes and rollback syntax checked; real rollback not run.
+Final hashes recorded in deployment/portal-response-limit-20261006/
+final-installed.sha256; deployment documentation now describes the accepted
+final scope. Existing unrelated local document changes preserved; no commit/push.
+
+
+TCP/UDP 53 read-only connectivity test — 2026-10-06 03:07–03:11 GMT+8
+
+User requested testing the scut-web port53 premise and supplied their server
+via SSH host alias hk. Preserved dirty checkout and current three-WAN sessions.
+All three bound Bilibili HTTPS HEAD probes returned200 before and after; table
+103 retained iif-br-lan routing and three healthy nexthops with weights1:1:1.
+No authentication/logout, wireless scan/reassociation, router firewall/route
+change or service restart was performed.
+
+Built a temporary ARM64/musl socket probe with SO_BINDTODEVICE and 3-second
+socket/connect timeouts. Ordinary example.com A queries over both TCP and UDP
+to223.5.5.5 and1.1.1.1 succeeded on Native phy0-sta0, USB phy3-sta0 and wired wan:
+12/12 replies with matching transaction ID, QR, rcode0 and two answers.
+
+On user-controlled hk, port53 was initially unoccupied; UFW INPUT defaultDROP
+with no TCP/UDP53 allow rule prevented the first external echo attempt. Local
+loopback TCP/UDP echo succeeded. Therefore the initial external failures are
+not evidence of campus filtering. Temporarily bound a fixed-token echo server
+to its public IPv4 TCP/UDP53 and inserted two uniquely commented volatile
+iptables INPUT allow rules, with finally cleanup and a55-second lifetime cap.
+No DNS resolver, proxy or relay was deployed; only the exact test token echoed.
+
+At03:11:23 all six bound non-DNS echoes succeeded (each WAN, TCP and UDP).
+Server independently confirmed six requests and matching responses. This
+establishes bidirectional non-DNS port53 connectivity TO THIS SERVER while
+these WANs were already online; it is not an unauthenticated-bypass result,
+throughput benchmark, proof of unrestricted destinations or overnight access.
+
+Server exited normally after six replies and deleted both temporary firewall
+rules. Rechecked no TCP/UDP53 listener and original INPUT chain structure.
+Router temporary executable was deleted. Local source/test helper remains in
+/private/tmp; no production scripts/configuration changed, no commit/push.
+To resolve scut-web's core claim, a separately authorized unauthenticated-link
+comparison is still required; this test did not disconnect a healthy session.
+
+
+Unauthenticated radio2 port53 comparison — 2026-10-06 03:13–03:20 GMT+8
+
+User identified radio2 as an unauthenticated candidate and clarified local Mac
+SSH to hk can traverse a proxy. Read-only inspection found radio2/wifinet4
+both disabled=1, wan2 NO_DEVICE, no phy2-sta0/address. User explicitly approved
+one night exception to enable radio2, obtain DHCP, test without campus login,
+and restore disabled state. No campus credentials read or authentication used.
+
+Test traffic originated in a native C socket process ON THE ROUTER with
+SO_BINDTODEVICE; hk SSH was only the management channel. No router proxy env
+variables or observed nft tproxy/redirect/dnat rules. The hk listener was
+addressed by numeric IPv4, and independent server receipt verified the active
+radio0 comparison. Mac proxy settings therefore do not explain the result.
+
+Backups retained locally on router under
+/root/scut-radio2-port53-test-20261006-0315b (700; copied configuration600).
+The earlier0315 directory is a pre-mutation backup from an attempt aborted
+because BusyBox flock lacks -w; no configuration was changed in that attempt.
+Adjusted to bounded nonblocking-flock polling. Held native-watchdog,
+native-best, night-native, qca-phy2-sta0 and dualwan-refresh locks throughout;
+Portal lock only held around association/configuration and restoration, to
+avoid blocking existing wired session challenges for the whole experiment.
+No lock/session/budget deletion, no session fabricated, no night policy override.
+
+Only radio2 was enabled using existing original MAC and SSID (no pinned BSSID).
+wan2 DHCP used temporary metric32000/default route and peerdns0, so existing
+router primary/USB/wired priorities and LAN table103 were not replaced.
+No UCI commit. At03:17:45 radio2 associated on5785MHz and received10.195.74.250/20
+with gateway10.195.79.254. Bound neverssl HTTP returned an exact SCUT Portal
+redirect (verified with existing hostname matcher; raw URL/body not printed).
+Bound Bilibili/JD HTTPS and hk TCP14710 control timed out. Ordinary external
+DNS query to223.5.5.5 failed for UDP and TCP. Fixed-token non-DNS echo to hk
+TCP53 timed out; UDP53 had no matching reply. Concurrent authenticated radio0
+TCP/UDP53 echoes both succeeded and were independently logged by hk. No
+radio2 token was received by hk. All probes bounded by2–4-second timeouts.
+
+Conclusion: unauthenticated public TCP/UDP53 pass-through was NOT reproduced
+on this radio2/AP/IP at this time. This does not prove every campus location,
+destination, IPv6 path, port or future policy behaves identically. DNS server
+failure alone is not blanket proof of all DNS being blocked. No throughput,
+full scan, relay/proxy installation or third-session authentication occurred.
+
+At03:18:19 cleanup reverted staged UCI changes, disabled radio2, and released
+its DHCP lease. Wireless/network and all three persistent session hashes
+matched backups; table103 unchanged. First post-cleanup Native HTTPS timed
+out. Follow-up showed radio0 still associated with unchanged IP and continuous
+connected time, but its MAIN-table default route had disappeared despite
+wan1 ubus still reporting that DHCP route. The exact deletion cause was not
+established; teardown/reload is a material suspect, not a proven cause.
+Restored the observed pre-test main route via10.195.63.254 devphy0-sta0,
+proto static, src10.195.61.141 without restarting/reassociating/authenticating.
+All six bound HTTPS checks (three WANs x Bilibili/JD) then returned200.
+Table103 remained1:1:1; UCI pending counts0; radio2 interface removed.
+
+hk echo process exited normally after its55-second cap (two radio0 responses)
+and removed both temporary INPUT rules. Rechecked no53 listener and original
+INPUT chain. Router temporary probe and go marker removed. Backups retained;
+local test helpers remain in/private/tmp. No production script changes,
+commits, pushes or persistent proxy/firewall/configuration changes.

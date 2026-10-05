@@ -110,6 +110,7 @@ RESP="$(
         --silent \
         --show-error \
         --max-time 15 \
+        --max-filesize 1048576 \
         --get \
         'https://s.scut.edu.cn:802/eportal/portal/login' \
         --data-urlencode 'callback=dr1003' \
@@ -127,6 +128,15 @@ RESP="$(
         --data-urlencode 'mac_type=0' \
         2>/dev/null
 )"
+CURL_RC=$?
+# Only a complete response can confirm this mutation; retain the journal on
+# overflow/timeout/transport errors, even if a partial body says result=1.
+if [ "$CURL_RC" -ne 0 ]; then
+    RESP=
+    logger -t campus-usb-portal "$DEV: Portal response incomplete curl=$CURL_RC; session retained"
+    exit 1
+fi
+
 
 if ! printf '%s\n' "$RESP" |
      grep -Eq '"result"[[:space:]]*:[[:space:]]*1[[:space:]]*[,}]'; then

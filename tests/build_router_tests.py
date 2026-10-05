@@ -3,11 +3,17 @@ import shutil
 import tarfile
 import subprocess
 import os
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--remote-root', default='/tmp/scut-multiwan-tests-experience-20261006')
+args = parser.parse_args()
+if not args.remote_root.startswith('/tmp/scut-multiwan-tests-') or any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/_-' for c in args.remote_root):
+    parser.error('remote root must be an isolated /tmp/scut-multiwan-tests-* path')
 root = Path(__file__).resolve().parents[1]
 out = root / 'tests/router-suite'
 shutil.rmtree(out, ignore_errors=True)
 (out/'bin').mkdir(parents=True)
-remote = '/tmp/scut-multiwan-tests-experience-20261006'
+remote = args.remote_root
 for src in (root/'candidate').rglob('*'):
     if not src.is_file(): continue
     rel = src.relative_to(root/'candidate')
@@ -29,6 +35,10 @@ for src in (root/'candidate').rglob('*'):
     dst.chmod(0o755)
 # Public date fixtures; no downloaded HTML, network state or credentials.
 shutil.copytree(root/'tests/fixtures', out/'fixtures')
+portal_prefix = b'dr1003({"result":1,"message":"PRIVATE_FIXTURE_BODY","padding":"'
+for name, size in [('portal-small.json', 1024), ('portal-boundary.json', 1048576), ('portal-over.json', 1048577)]:
+    (out/'fixtures'/name).write_bytes(portal_prefix + b'x'*(size-len(portal_prefix)-4) + b'"});')
+(out/'fixtures/portal-failure.json').write_bytes(b'dr1003({"result":0});')
 calendar = subprocess.check_output(['awk', '-v', 'year=2026', '-v',
     'source=https://www.gov.cn/zhengce/content/202511/content_7047090.htm',
     '-f', str(root/'candidate/usr/lib/scut-multiwan/calendar-parse.awk'),
@@ -43,7 +53,7 @@ name="${0##*/}"
 case "$name" in
  date) case "$1" in '+%Y-%m-%d %u %H %M %S') echo "${TEST_DATE:-2026-10-08} ${TEST_WEEKDAY:-4} ${TEST_CLOCK:-20 00 00}";; '+%H %M %S') echo "${TEST_CLOCK:-20 00 00}";; +%s) echo "${TEST_EPOCH:-1791432000}";; -d) echo "$2";; *) echo 'test clock';; esac; exit 0;;
  sleep) [ "$1" -ge 20 ] && /bin/sleep 1; exit 0;;
- logger) exit 0;;
+ logger) [ -z "${TEST_PORTAL_LOG_CAPTURE:-}" ] || printf '%s\n' "$*" >> "$TEST_ROOT/portal-log"; exit 0;;
  scutclient-wired)
    read -r fixture_user; read -r fixture_pass
    [ "$fixture_user" = test-user ] && [ "$fixture_pass" = test-password ] || exit 98
@@ -104,11 +114,12 @@ case "$name" in
     *) echo "ip $*" >> "$TEST_ROOT/trace";;
    esac; exit 0;;
  curl)
-   dev=; target=; prev=; url=; pwarg=0; output=; resolved=0
+   dev=; target=; prev=; url=; pwarg=0; output=; resolved=0; cap=
    for arg in "$@"; do
      [ "$prev" = --interface ] && dev="$arg"
      [ "$prev" = --output ] && output="$arg"
      [ "$prev" = --resolve ] && resolved=1
+     [ "$prev" = --max-filesize ] && cap="$arg"
      case "$arg" in
       http*://*) url="$arg";;
       wlan_user_ip=*) target="${arg#*=}";;
@@ -130,12 +141,19 @@ case "$name" in
       printf '%s' "$url"; exit 0;;
     *neverssl*) printf '%s' "${TEST_REDIRECT-https://s.scut.edu.cn/a79.htm?wlanacip=10.0.0.1}";;
     *'/portal/mac/unbind')
+      [ "$cap" = 1048576 ] || exit 98
       echo "LOGOUT $dev $target" >> "$TEST_ROOT/trace"
+      if [ -n "${TEST_PORTAL_LOGOUT_BODY:-}" ]; then
+        head -c "$cap" "$TEST_PORTAL_LOGOUT_BODY"
+        [ "$(wc -c < "$TEST_PORTAL_LOGOUT_BODY")" -le "$cap" ] || exit 63
+        exit "${TEST_PORTAL_LOGOUT_RC:-0}"
+      fi
       if [ "$target" = "${TEST_FAIL_LOGOUT_IP:-never}" ]; then echo '{"result":0}'; else
         case "$target" in 167837962) touch "$TEST_ROOT/phy0-sta0-offline"; rm -f "$TEST_ROOT/phy0-sta0-login";; 167969566) touch "$TEST_ROOT/phy2-sta0-offline"; rm -f "$TEST_ROOT/phy2-sta0-login";; 167903764) touch "$TEST_ROOT/phy3-sta0-offline"; rm -f "$TEST_ROOT/phy3-sta0-login";; esac
         echo '{"result":1}'
       fi;;
     *'/portal/login')
+      [ "$cap" = 1048576 ] || exit 98
       [ "$pwarg" = 1 ] || exit 98
       password="$(cat)"; [ "$password" = 'test-password' ] || exit 98
       case "$dev" in phy3-sta0) slot=usb;; *) slot=native;; esac
@@ -144,6 +162,11 @@ case "$name" in
       echo "LOGIN $dev $target" >> "$TEST_ROOT/trace"
       touch "$TEST_ROOT/$dev-login"
       [ "${TEST_LOGIN_TIMEOUT:-0}" = 1 ] && exit 28
+      if [ -n "${TEST_PORTAL_LOGIN_BODY:-}" ]; then
+        head -c "$cap" "$TEST_PORTAL_LOGIN_BODY"
+        [ "$(wc -c < "$TEST_PORTAL_LOGIN_BODY")" -le "$cap" ] || exit 63
+        exit "${TEST_PORTAL_LOGIN_RC:-0}"
+      fi
       echo '{"result":1}';;
     *bilibili*|*jd.com*)
       if [ "${TEST_DNS_FAIL:-0}" = 1 ] && [ "$resolved" = 0 ]; then echo DNS_FAILURE >> "$TEST_ROOT/trace"; printf 000; exit 6; fi
@@ -180,6 +203,8 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
+ unset TEST_PORTAL_LOGIN_BODY TEST_PORTAL_LOGOUT_BODY TEST_PORTAL_LOGIN_RC TEST_PORTAL_LOGOUT_RC TEST_PORTAL_LOG_CAPTURE
+ rm -f "$TEST_ROOT/portal-log"
  unset TEST_WIRED_ONLINE TEST_WIRED_IP TEST_RX_VALID_LIMIT TEST_ASSOC_CHANGE TEST_DNS_FAIL
  rm -f "$TEST_ROOT/etc/scut-wired.conf" "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
  unset TEST_CONNECTED TEST_DATE TEST_WEEKDAY TEST_EPOCH TEST_PRIMARY_FAIL TEST_CAL_FETCH_FAIL TEST_CAL_DOWNLOAD_FAIL TEST_CAL_BAD_NOTICE TEST_CLOCK TEST_REDIRECT TEST_HTTPS_CODE TEST_ACTIVE TEST_BEST_RC TEST_NATIVE_ONLINE TEST_USB_ONLINE TEST_CANDIDATE_ONLINE TEST_AFTER_LOGIN_ONLINE TEST_FAIL_LOGOUT_IP TEST_LOGIN_TIMEOUT TEST_ROUTE_FAIL TEST_PING_FAIL TEST_TX TEST_RX TEST_FAILED TEST_RATE_FAIL TEST_VERIFY_PING_FAIL TEST_ROLLBACK_RATE_FAIL TEST_SCAN_EMPTY
@@ -373,7 +398,7 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

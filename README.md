@@ -17,6 +17,8 @@
 
 ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 
+2026-10-06 的只读资源检查未见轻载内存/闪存压力；用户目标为三路合计下行接近 300 Mbps，尚未完成该负载下的转发、延迟和长期内存验收。各模块存储限制、同款设备 ath11k 负载风险及优化优先级见 [资源容量评估](docs/resource-capacity-review-20261006.md)。
+
 ## 网络体验改进（已部署）
 
 2026-10-06 新版本使用 Bilibili 主 / 京东副 HTTPS，增加白天连续 MCS 采样、延迟升档、健康路由恢复确认与探测合并、扫描失败退避、保留候选 DHCP、有线挑战锁等待及 07:00 有线启动检查。普通工作日/补班日 00:06–07:00 静默保留。113 组路由器隔离回归、19 项有线协议 mock 已通过；2026-10-06 02:12:35（GMT+8）已部署，02:13:50 真实三路验证后解除自动回滚。新版有线已完成认证、心跳及同会话挑战；临时额度已撤销，保留实际 3 次记录。性能短测、规则和限制见 [改进说明](docs/network-experience-changes-20261006.md)，上线分阶段方案见 [候选部署说明](deployment/experience-20261006/README.md)。
@@ -27,8 +29,8 @@ ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 | --- | --- |
 | `candidate/` | 维护脚本及热插拔钩子，目录结构对应路由器根目录 |
 | `tests/build_router_tests.py` | 生成隔离的 BusyBox ash 回归测试 |
-| `deployment/` | 历史稳定性、夜间策略、有线及 `experience-20261006/` 部署/回滚记录 |
-| `docs/` | 网络体验改进实施与代码审查记录 |
+| `deployment/` | 稳定性、夜间策略、有线、体验改进及 `portal-response-limit-20261006/` 部署/回滚记录 |
+| `docs/` | 网络体验、资源容量和 Portal 响应限制评估/实施记录 |
 | `examples/campus-portal.conf.example` | 不含真实账号密码的配置示例 |
 | `THIRD_PARTY_NOTICES.md`、`LICENSES/` | 第三方来源、复用范围及许可证 |
 | `OPERATIONS.txt` | 本次修复与验证记录 |
@@ -61,7 +63,9 @@ tar -xf /tmp/router-suite.tar -C /tmp/scut-multiwan-tests-experience-20261006
 sh /tmp/scut-multiwan-tests-experience-20261006/run.sh
 ```
 
-测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 113 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
+测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 139 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
+
+四个 HTTP Portal 入口的 1 MiB 响应限制已于 2026-10-06 03:11:49（GMT+8）部署；完整响应保留原处理，超限/传输不完整保留会话保护。139 组路由器隔离检查及 7 项实际 curl 合成 HTTP 检查已通过；部署后配置/会话/额度未变、三路 HTTPS 正常，真实下一次认证仍待观察。详见 [容量限制与验证边界](docs/portal-response-limit-20261006.md)。
 
 ## 部署与回滚
 

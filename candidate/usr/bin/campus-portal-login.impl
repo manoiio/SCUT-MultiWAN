@@ -111,6 +111,7 @@ RESPONSE="$(
         --silent \
         --show-error \
         --max-time 12 \
+        --max-filesize 1048576 \
         --referer 'https://s.scut.edu.cn/' \
         --user-agent 'Mozilla/5.0' \
         --get \
@@ -129,6 +130,15 @@ RESPONSE="$(
         --data-urlencode 'mac_type=0' \
         'https://s.scut.edu.cn:802/eportal/portal/login' 2>&1
 )"
+CURL_RC=$?
+# Only a complete response can confirm this mutation; retain the journal on
+# overflow/timeout/transport errors, even if a partial body says result=1.
+if [ "$CURL_RC" -ne 0 ]; then
+    RESPONSE=
+    logger -t campus-portal "$DEV: Portal response incomplete curl=$CURL_RC; session retained"
+    exit 1
+fi
+
 
 : # Never persist an unfiltered Portal response.
 
