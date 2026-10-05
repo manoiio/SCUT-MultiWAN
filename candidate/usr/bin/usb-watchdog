@@ -1,0 +1,199 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+
+log() {
+    logger -t usb-watchdog "$*"
+}
+
+# 00:06 - 07:29 完全静默
+
+quiet_now() { mw_quiet_now; }
+
+if quiet_now; then
+    exit 0
+fi
+
+mw_require_active || exit $?
+mw_lock usb-watchdog 8 || exit $?
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+USB_CHANGED=0
+usb_cleanup() {
+    if [ "$USB_CHANGED" -eq 1 ]; then
+        /usr/bin/dualwan-refresh apply >/dev/null 2>&1 ||
+            logger -t usb-watchdog "USB transition finished; dual-WAN refresh deferred/failed"
+    fi
+}
+trap usb_cleanup EXIT
+
+find_usbdev() {
+    iw dev 2>/dev/null |
+    awk '
+        /^phy#3$/ {
+            p=1
+            next
+        }
+
+        /^phy#/ {
+            p=0
+        }
+    
+        p && $1 == "Interface" {
+            print $2
+            exit
+        }
+    '
+
+}
+
+internet_online() { mw_online "$1" 8; }
+
+portal_required() {
+    mw_require_active 10 || return $?
+    DEV="$1"
+
+    OUT="$(
+        curl -4 \
+            --interface "$DEV" \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            --write-out '%{redirect_url}' \
+            --max-time 8 \
+            http://neverssl.com/ \
+            2>/dev/null
+    )"
+    
+    mw_scUT_redirect "$OUT"
+
+}
+
+DEV="$(find_usbdev)"
+
+#
+
+# radio3/interface 消失：只恢复 USB，不碰 Native。
+
+#
+if [ -z "$DEV" ]; then
+    log "phy3 STA missing; recovering radio3"
+
+    mw_require_active 40 || exit $?
+    mw_portal_lock 30 || exit $?
+    USB_CHANGED=1
+    wifi down radio3 >/dev/null 2>&1
+    sleep 2
+    wifi up radio3 >/dev/null 2>&1
+    sleep 8
+    
+    DEV="$(find_usbdev)"
+    
+    if [ -z "$DEV" ]; then
+        log "radio3 recovery failed: no STA interface"
+        exit 1
+    fi
+
+fi
+
+#
+
+# 没有关联：重新启动 radio3。
+
+#
+if ! iw dev "$DEV" link 2>/dev/null |
+     grep -q '^Connected to '; then
+
+    log "$DEV not associated; reconnecting radio3"
+    
+    mw_require_active 40 || exit $?
+    mw_portal_lock 30 || exit $?
+    USB_CHANGED=1
+    wifi down radio3 >/dev/null 2>&1
+    sleep 2
+    wifi up radio3 >/dev/null 2>&1
+    sleep 8
+    
+    DEV="$(find_usbdev)"
+    
+    [ -n "$DEV" ] || {
+        log "radio3 reconnect failed: interface missing"
+        exit 1
+    }
+    
+    if ! iw dev "$DEV" link 2>/dev/null |
+         grep -q '^Connected to '; then
+    
+        log "$DEV still not associated"
+        exit 1
+    fi
+
+fi
+
+#
+
+# 确保 DHCP 接口正常。
+
+#
+if ! ubus call network.interface.usbwan status 2>/dev/null |
+     grep -q '"up":[[:space:]]*true'; then
+
+    log "$DEV usbwan down; restarting DHCP"
+    
+    mw_require_active 40 || exit $?
+    mw_portal_lock 30 || exit $?
+    USB_CHANGED=1
+    ifdown usbwan >/dev/null 2>&1
+    ifup usbwan >/dev/null 2>&1
+    sleep 8
+
+fi
+
+#
+
+# 已联网：什么都不做。
+
+#
+if internet_online "$DEV"; then
+    exit 0
+fi
+
+#
+
+# 再确认一次，避免瞬时公网抖动。
+
+#
+sleep 2
+
+if internet_online "$DEV"; then
+    exit 0
+fi
+
+#
+
+# 只有明确看到校园 Portal redirect 才重新登录。
+
+# 普通 Internet 超时不能盲目创建 Portal session。
+
+#
+mw_require_active 20 || exit $?
+if portal_required "$DEV"; then
+
+    USB_CHANGED=1
+    log "$DEV Portal authentication required"
+    
+    if /usr/bin/campus-usb-login "$DEV"; then
+        log "$DEV Portal recovery successful"
+        exit 0
+    fi
+    
+    log "$DEV Portal recovery failed"
+    exit 1
+
+fi
+
+log "$DEV Internet check failed but no Portal redirect"
+
+exit 1

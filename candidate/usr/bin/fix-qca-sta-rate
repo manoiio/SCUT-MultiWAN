@@ -1,0 +1,685 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+DEV="$1"
+
+case "$DEV" in
+    phy0-sta*|phy2-sta*)
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+mw_require_active || exit $?
+mw_lock "qca-$DEV" 7 || exit $?
+
+STATE_DIR="/tmp/qca-fixed-rate"
+STATE_FILE="$STATE_DIR/${DEV}.state"
+
+mkdir -p "$STATE_DIR"
+
+is_uint() {
+    case "$1" in
+        ''|*[!0-9]*)
+            return 1
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+}
+
+set_rate() {
+    M="$1"
+    mw_require_active 5 || return $?
+
+    iw dev "$DEV" set bitrates \
+        legacy-5 6 \
+        ht-mcs-5 0 \
+        vht-mcs-5 \
+        he-mcs-5 2:"$M"
+
+}
+
+#
+
+# 内核锁由 FD 7 持有，进程退出后自动释放，不删除锁文件。
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+#
+
+# 等待 STA 完成关联。
+
+#
+I=0
+LINK=""
+
+while [ "$I" -lt 15 ]; do
+
+    LINK="$(iw dev "$DEV" link 2>/dev/null)"
+    
+    if echo "$LINK" | grep -q '^Connected to '; then
+        break
+    fi
+    
+    I=$((I + 1))
+    sleep 1
+
+done
+
+if ! echo "$LINK" | grep -q '^Connected to '; then
+    logger -t qca-fixed-rate \
+        "$DEV no associated station"
+
+    exit 1
+
+fi
+
+BSSID="$(
+    echo "$LINK" |
+    awk '/^Connected to / { print $3; exit }'
+)"
+
+FREQ="$(
+    echo "$LINK" |
+    awk '$1 == "freq:" { print int($2); exit }'
+)"
+
+[ -n "$FREQ" ] || FREQ="unknown"
+
+LINK_KEY="${BSSID}@${FREQ}"
+
+#
+
+# 读取上一轮状态：
+
+#
+
+# line 1 = BSSID@frequency
+
+# line 2 = 最终 TX MCS
+
+# line 3 = tx packets
+
+# line 4 = tx failed
+
+# line 5 = RX 良好状态开始时间
+
+#
+LAST_LINK="$(sed -n '1p' "$STATE_FILE" 2>/dev/null)"
+LAST_TARGET="$(sed -n '2p' "$STATE_FILE" 2>/dev/null)"
+PREV_PACKETS="$(sed -n '3p' "$STATE_FILE" 2>/dev/null)"
+PREV_FAILED="$(sed -n '4p' "$STATE_FILE" 2>/dev/null)"
+GOOD_SINCE="$(sed -n '5p' "$STATE_FILE" 2>/dev/null)"
+LAST_CHECK="$(sed -n '6p' "$STATE_FILE" 2>/dev/null)"
+NOW="$(mw_uptime)"
+if ! is_uint "$LAST_CHECK" || [ "$LAST_CHECK" -gt "$NOW" ] ||
+   [ $((NOW - LAST_CHECK)) -gt 360 ]; then
+    GOOD_SINCE=0
+fi
+if ! is_uint "$GOOD_SINCE" || [ "$GOOD_SINCE" -gt "$NOW" ]; then GOOD_SINCE=0; fi
+
+#
+
+# BSSID 或频率变化：
+
+# 不继承上一条链路的速率判断。
+
+#
+if [ "$LAST_LINK" != "$LINK_KEY" ]; then
+    LAST_TARGET=""
+    PREV_PACKETS=""
+    PREV_FAILED=""
+    GOOD_SINCE=0
+fi
+
+DUMP="$(iw dev "$DEV" station dump 2>/dev/null)"
+
+SIGNAL="$(
+    echo "$DUMP" |
+    awk '
+        /signal avg:/ {
+            print int($3)
+            exit
+        }
+    '
+)"
+
+if [ -z "$SIGNAL" ]; then
+    SIGNAL="$(
+        echo "$DUMP" |
+        awk '
+            /^[[:space:]]*signal:/ {
+                print int($2)
+                exit
+            }
+        '
+    )"
+fi
+
+CURRENT_TX="$(
+    echo "$DUMP" |
+    awk '
+        /tx bitrate:/ {
+            for (i = 1; i <= NF; i++) {
+                if ($i == "HE-MCS") {
+                    print $(i + 1)
+                    exit
+                }
+            }
+        }
+    '
+)"
+
+CURRENT_PACKETS="$(
+    echo "$DUMP" |
+    awk '
+        /tx packets:/ {
+            print $3
+            exit
+        }
+    '
+)"
+
+CURRENT_FAILED="$(
+    echo "$DUMP" |
+    awk '
+        /tx failed:/ {
+            print $3
+            exit
+        }
+    '
+)"
+
+#
+
+# 检测上一轮以来是否存在严重 TX failure。
+
+#
+SEVERE_FAIL=0
+DELTA_PACKETS=""
+DELTA_FAILED=""
+
+if is_uint "$CURRENT_PACKETS" &&
+   is_uint "$CURRENT_FAILED" &&
+   is_uint "$PREV_PACKETS" &&
+   is_uint "$PREV_FAILED" &&
+   [ "$CURRENT_PACKETS" -ge "$PREV_PACKETS" ] &&
+   [ "$CURRENT_FAILED" -ge "$PREV_FAILED" ]; then
+
+    DELTA_PACKETS=$((CURRENT_PACKETS - PREV_PACKETS))
+    DELTA_FAILED=$((CURRENT_FAILED - PREV_FAILED))
+    
+    #
+    # 至少 20 个 failure，同时达到约 10% 以上。
+    #
+    if [ "$DELTA_FAILED" -ge 20 ] &&
+       [ $((DELTA_FAILED * 10)) -ge "$DELTA_PACKETS" ]; then
+    
+        SEVERE_FAIL=1
+    fi
+
+fi
+
+#
+
+# Counters can reset on a reassociation to the same BSSID. Do not inherit a
+# promotion timer from the preceding association.
+if is_uint "$PREV_PACKETS" && is_uint "$CURRENT_PACKETS" &&
+   [ "$CURRENT_PACKETS" -lt "$PREV_PACKETS" ]; then GOOD_SINCE=0; fi
+if is_uint "$PREV_FAILED" && is_uint "$CURRENT_FAILED" &&
+   [ "$CURRENT_FAILED" -lt "$PREV_FAILED" ]; then GOOD_SINCE=0; fi
+
+# 先确定当前实际工作档。
+
+#
+BASE=""
+
+case "$CURRENT_TX" in
+    7|9)
+        BASE="$CURRENT_TX"
+        ;;
+esac
+
+if [ -z "$BASE" ]; then
+    case "$LAST_TARGET" in
+        7|9)
+            BASE="$LAST_TARGET"
+            ;;
+    esac
+fi
+
+PRECAPPED=0
+REASON="normal"
+
+#
+
+# 重要：
+
+#
+
+# 如果现在仍然是 MCS11（或其他 >9 的 HE MCS），
+
+# 立即先压到 MCS9。
+
+#
+
+# 不再先压到 MCS7。
+
+#
+if is_uint "$CURRENT_TX" &&
+   [ "$CURRENT_TX" -gt 9 ]; then
+
+    if ! set_rate 9; then
+        logger -t qca-fixed-rate \
+            "$DEV failed to pre-cap TX from MCS${CURRENT_TX} to MCS9"
+    
+        exit 1
+    fi
+    
+    BASE=9
+    PRECAPPED=1
+    REASON="precap-MCS${CURRENT_TX}-to-MCS9"
+
+fi
+
+#
+
+# 如果没有可信的当前档位，例如刚建接口或只看到 legacy 6M，
+
+# 而且也没有历史目标，则保守进入 MCS7。
+
+#
+if [ -z "$BASE" ]; then
+
+    if ! set_rate 7; then
+        logger -t qca-fixed-rate \
+            "$DEV failed to initialize safe MCS7"
+    
+        exit 1
+    fi
+    
+    BASE=7
+    REASON="unknown-current-rate"
+
+fi
+
+#
+
+# 如果上一段时间本来就在 MCS9，
+
+# 并且 tx failed 已经明显异常，先立即退到 MCS7。
+
+#
+
+# 如果刚刚是从 MCS11 压到 MCS9，则不使用之前
+
+# MCS11 产生的 failure 来处罚 MCS9。
+
+#
+if [ "$BASE" = "9" ] &&
+   [ "$SEVERE_FAIL" -eq 1 ] &&
+   [ "$PRECAPPED" -eq 0 ]; then
+
+    if set_rate 7; then
+        BASE=7
+        GOOD_SINCE=0
+        REASON="MCS9-severe-tx-failure"
+    fi
+
+fi
+
+#
+
+# 找当前 STA 对应的网关。
+
+#
+GW="$(
+    ip -4 route show dev "$DEV" 2>/dev/null |
+    awk '
+        $1 == "default" {
+            print $3
+            exit
+        }
+    '
+)"
+
+#
+
+# 主动制造极少量真实流量，再读取 RX bitrate。
+
+#
+
+# 这样避免连续读取到空闲状态下的旧 RX MCS。
+
+#
+RX_SAMPLES=""
+PROBES=0
+REPLIES=0
+
+I=1
+
+while [ "$I" -le 5 ]; do
+    mw_require_active 3 || exit $?
+
+    if [ -n "$GW" ]; then
+        PROBES=$((PROBES + 1))
+    
+        if ping -I "$DEV" -c 1 -W 1 "$GW" \
+            >/dev/null 2>&1; then
+    
+            REPLIES=$((REPLIES + 1))
+        fi
+    fi
+    
+    RX="$(
+        iw dev "$DEV" station dump 2>/dev/null |
+        awk '
+            /rx bitrate:/ {
+                for (i = 1; i <= NF; i++) {
+                    if ($i == "HE-MCS") {
+                        print $(i + 1)
+                        exit
+                    }
+                }
+            }
+        '
+    )"
+    
+    case "$RX" in
+        ''|*[!0-9]*)
+            ;;
+        *)
+            RX_SAMPLES="$RX_SAMPLES $RX"
+            ;;
+    esac
+    
+    I=$((I + 1))
+    
+    [ "$I" -le 5 ] && sleep 1
+
+done
+
+#
+
+# 中位数。
+
+# 偶数个有效样本时取偏低的那个，更保守。
+
+#
+RX_MEDIAN="$(
+    for V in $RX_SAMPLES; do
+        echo "$V"
+    done |
+    sort -n |
+    awk '
+        {
+            a[NR] = $1
+        }
+        END {
+            if (NR > 0)
+                print a[int((NR + 1) / 2)]
+        }
+    '
+)"
+
+NOW="$(mw_uptime)"
+
+TARGET="$BASE"
+
+#
+
+# 当前是 MCS9：
+
+#
+
+# 只要发现：
+
+# - RX 中位数已经低于 9
+
+# - 或网关 5 次测试只有 3 次及以下成功
+
+#
+
+# 就立即降 MCS7。
+
+#
+if [ "$BASE" = "9" ]; then
+
+    if is_uint "$RX_MEDIAN" &&
+       [ "$RX_MEDIAN" -lt 9 ]; then
+    
+        TARGET=7
+        GOOD_SINCE=0
+        REASON="RX-median-below-9"
+    
+    elif [ "$PROBES" -ge 4 ] &&
+         [ "$REPLIES" -le 3 ]; then
+    
+        TARGET=7
+        GOOD_SINCE=0
+        REASON="gateway-loss-on-MCS9"
+    
+    else
+        TARGET=9
+        GOOD_SINCE=0
+    fi
+
+fi
+
+#
+
+# 当前是 MCS7：
+
+#
+
+# 不看到一次 RX9 就立即升。
+
+#
+
+# 必须：
+
+# - RX median >= 9
+
+# - 网关至少 4/5 成功
+
+# - 没有严重 tx failed
+
+# - 这种状态维持至少 300 秒
+
+#
+
+# 才尝试升 MCS9。
+
+#
+if [ "$BASE" = "7" ]; then
+
+    GOOD_NOW=0
+    
+    if is_uint "$RX_MEDIAN" &&
+       [ "$RX_MEDIAN" -ge 9 ] &&
+       [ "$PROBES" -ge 4 ] &&
+       [ "$REPLIES" -ge 4 ] &&
+       [ "$SEVERE_FAIL" -eq 0 ]; then
+    
+        GOOD_NOW=1
+    fi
+    
+    if [ "$GOOD_NOW" -eq 1 ]; then
+    
+        if ! is_uint "$GOOD_SINCE" ||
+           [ "$GOOD_SINCE" -eq 0 ]; then
+    
+            GOOD_SINCE="$NOW"
+            TARGET=7
+            REASON="MCS9-candidate-start"
+    
+        elif [ $((NOW - GOOD_SINCE)) -ge 300 ]; then
+    
+            TARGET=9
+            REASON="MCS9-candidate-5min"
+    
+        else
+            TARGET=7
+            REASON="MCS9-candidate-wait"
+        fi
+    
+    else
+        GOOD_SINCE=0
+        TARGET=7
+    fi
+
+fi
+
+#
+
+# 无论目标是否改变，都重新写一次 bitrate mask。
+
+# 这是为了防止 ath11k 重关联/roam 后丢掉固定速率限制。
+
+#
+if ! set_rate "$TARGET"; then
+
+    logger -t qca-fixed-rate \
+        "$DEV failed to apply final MCS${TARGET}"
+    
+    exit 1
+
+fi
+
+#
+
+# 如果这是 MCS7 -> MCS9 的主动升档，
+
+# 立即做一次真实验证。
+
+#
+
+# RX 只是参考，不直接相信它一定代表 TX 也能稳定 MCS9。
+
+#
+if [ "$BASE" = "7" ] &&
+   [ "$TARGET" = "9" ] &&
+   [ -n "$GW" ]; then
+
+    BEFORE_FAIL="$(
+        iw dev "$DEV" station dump 2>/dev/null |
+        awk '
+            /tx failed:/ {
+                print $3
+                exit
+            }
+        '
+    )"
+    
+    VERIFY_OK=0
+    I=1
+    
+    while [ "$I" -le 5 ]; do
+    mw_require_active 3 || exit $?
+    
+        if ping -I "$DEV" -c 1 -W 1 "$GW" \
+            >/dev/null 2>&1; then
+    
+            VERIFY_OK=$((VERIFY_OK + 1))
+        fi
+    
+        I=$((I + 1))
+    done
+    
+    AFTER_FAIL="$(
+        iw dev "$DEV" station dump 2>/dev/null |
+        awk '
+            /tx failed:/ {
+                print $3
+                exit
+            }
+        '
+    )"
+    
+    VERIFY_BAD=0
+    
+    if [ "$VERIFY_OK" -le 3 ]; then
+        VERIFY_BAD=1
+    fi
+    
+    if is_uint "$BEFORE_FAIL" &&
+       is_uint "$AFTER_FAIL" &&
+       [ "$AFTER_FAIL" -ge "$BEFORE_FAIL" ]; then
+    
+        VF=$((AFTER_FAIL - BEFORE_FAIL))
+    
+        if [ "$VF" -ge 3 ]; then
+            VERIFY_BAD=1
+        fi
+    fi
+    
+    if [ "$VERIFY_BAD" -eq 1 ]; then
+    
+        if ! set_rate 7; then
+            logger -t qca-fixed-rate "$DEV failed to roll back MCS9 promotion"
+            exit 1
+        fi
+    
+        TARGET=7
+        GOOD_SINCE=0
+        REASON="MCS9-promotion-validation-failed"
+    
+    else
+        GOOD_SINCE=0
+        REASON="MCS9-promotion-validated"
+    fi
+
+fi
+
+#
+
+# 保存最终状态。
+
+#
+FINAL_DUMP="$(iw dev "$DEV" station dump 2>/dev/null)"
+
+FINAL_PACKETS="$(
+    echo "$FINAL_DUMP" |
+    awk '
+        /tx packets:/ {
+            print $3
+            exit
+        }
+    '
+)"
+
+FINAL_FAILED="$(
+    echo "$FINAL_DUMP" |
+    awk '
+        /tx failed:/ {
+            print $3
+            exit
+        }
+    '
+)"
+
+is_uint "$FINAL_PACKETS" || FINAL_PACKETS=0
+is_uint "$FINAL_FAILED" || FINAL_FAILED=0
+is_uint "$GOOD_SINCE" || GOOD_SINCE=0
+
+TMP="${STATE_FILE}.$$"
+
+{
+    echo "$LINK_KEY"
+    echo "$TARGET"
+    echo "$FINAL_PACKETS"
+    echo "$FINAL_FAILED"
+    echo "$GOOD_SINCE"
+    echo "$NOW"
+} > "$TMP"
+
+mv "$TMP" "$STATE_FILE" || exit 1
+
+logger -t qca-fixed-rate \
+    "$DEV signal=${SIGNAL:-unknown}dBm tx_before=${CURRENT_TX:-legacy/unknown} last=${LAST_TARGET:-none} rx='${RX_SAMPLES# }' median=${RX_MEDIAN:-unknown} gw=${REPLIES}/${PROBES} dfailed=${DELTA_FAILED:-na} dpkts=${DELTA_PACKETS:-na} -> MCS${TARGET} reason=${REASON}"
+
+exit 0

@@ -1,0 +1,21 @@
+# Private router backups and one-off migration tooling
+/original/
+/prepare_candidates.py
+# Generated test/deployment artifacts
+/tests/router-suite/
+*.tar
+*.tar.gz
+__pycache__/
+*.pyc
+.DS_Store
+# Credentials, runtime state, logs and private keys
+campus-portal.conf
+*.session
+*.log
+*.response
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*

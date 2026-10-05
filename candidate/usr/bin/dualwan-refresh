@@ -1,0 +1,139 @@
+#!/bin/sh
+. /usr/lib/scut-multiwan/common.sh || exit 1
+TABLE=103
+PREF=103
+log() { logger -t dualwan "$*"; }
+iface_dev() {
+    local status dev
+    status="$(ubus call "network.interface.$1" status 2>/dev/null)" || return 1
+    echo "$status" | grep -q '"up":[[:space:]]*true' || return 1
+    dev="$(echo "$status" | sed -n 's/^[[:space:]]*"l3_device":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    [ -n "$dev" ] && [ -e "/sys/class/net/$dev" ] || return 1
+    printf '%s\n' "$dev"
+}
+get_gateway() {
+    ip -4 route show dev "$1" | awk '$1 == "default" {print $3; exit}'
+}
+get_network() {
+    ip -4 route show dev "$1" scope link |
+        awk '$1 ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\/[0-9]+$/ {print $1; exit}'
+}
+online_confirm() {
+    mw_require_active 16 || return $?
+    mw_online "$1" 6 && return 0
+    sleep 1
+    mw_require_active 8 || return $?
+    mw_online "$1" 6
+}
+remove_policy() {
+    while ip rule del pref "$PREF" 2>/dev/null; do :; done
+    ip route flush table "$TABLE" 2>/dev/null
+}
+fail_policy() {
+    log "$1; policy removed"
+    remove_policy
+    exit 1
+}
+status_cmd() {
+    for status_iface in wan1 wan2 usbwan; do
+        status_dev="$(iface_dev "$status_iface")" || continue
+        printf '%s: %s ' "$status_iface" "$status_dev"
+        if mw_quiet_now; then echo 'Internet probe skipped (quiet period)'
+        elif mw_online "$status_dev" 6; then echo online
+        else echo offline; fi
+    done
+    echo 'RPDB:'
+    ip rule show
+    echo "Table $TABLE:"
+    ip route show table "$TABLE"
+}
+case "$1" in
+    status) status_cmd; exit 0;;
+    apply|'') MODE=apply;;
+    remove) MODE=remove;;
+    *) echo "usage: $0 [apply|status|remove]" >&2; exit 2;;
+esac
+mw_require_active 40 || exit $?
+mw_lock dualwan-refresh 8 || exit $?
+# Avoid publishing a partially completed Portal/radio transition. The final
+# refresh of a Native transaction reuses its inherited FD 9.
+mw_portal_lock 0 || exit $?
+if [ "$MODE" = remove ]; then remove_policy; exit $?; fi
+sysctl -qw net.ipv4.fib_multipath_hash_policy=1 || exit 1
+sysctl -qw net.ipv4.conf.all.rp_filter=0 || exit 1
+sysctl -qw net.ipv4.conf.default.rp_filter=0 || exit 1
+NATIVE_OK=0
+USB_OK=0
+for NATIVE_IF in wan1 wan2; do
+    NATIVE_DEV="$(iface_dev "$NATIVE_IF")" || continue
+    sysctl -qw "net.ipv4.conf.${NATIVE_DEV}.rp_filter=0" || exit 1
+    online_confirm "$NATIVE_DEV"
+    check_rc=$?
+    [ "$check_rc" -eq 76 ] && exit 76
+    [ "$check_rc" -eq 0 ] || continue
+    NATIVE_GW="$(get_gateway "$NATIVE_DEV")"
+    NATIVE_NET="$(get_network "$NATIVE_DEV")"
+    mw_ipv4 "$NATIVE_GW" && [ -n "$NATIVE_NET" ] || continue
+    NATIVE_OK=1
+    break
+done
+USB_DEV="$(iface_dev usbwan)"
+if [ -n "$USB_DEV" ]; then
+    sysctl -qw "net.ipv4.conf.${USB_DEV}.rp_filter=0" || exit 1
+    online_confirm "$USB_DEV"
+    check_rc=$?
+    [ "$check_rc" -eq 76 ] && exit 76
+    if [ "$check_rc" -eq 0 ]; then
+        USB_GW="$(get_gateway "$USB_DEV")"
+        USB_NET="$(get_network "$USB_DEV")"
+        if mw_ipv4 "$USB_GW" && [ -n "$USB_NET" ]; then USB_OK=1; fi
+    fi
+fi
+mw_require_active 10 || exit $?
+if [ "$NATIVE_OK" -eq 0 ] && [ "$USB_OK" -eq 0 ]; then
+    fail_policy 'no healthy WAN with a usable route'
+fi
+# Checked connected routes first, then an atomic replacement of the default.
+# Healthy refreshes never flush table 103 or remove its valid rule.
+if [ "$NATIVE_OK" -eq 1 ] && [ "$USB_OK" -eq 1 ] && [ "$NATIVE_NET" = "$USB_NET" ]; then
+    ip route replace table "$TABLE" "$NATIVE_NET" scope link \
+        nexthop dev "$NATIVE_DEV" weight 1 nexthop dev "$USB_DEV" weight 1 ||
+        fail_policy 'failed to install shared connected route'
+else
+    if [ "$NATIVE_OK" -eq 1 ]; then
+        ip route replace table "$TABLE" "$NATIVE_NET" dev "$NATIVE_DEV" ||
+            fail_policy 'failed to install Native connected route'
+    fi
+    if [ "$USB_OK" -eq 1 ]; then
+        ip route replace table "$TABLE" "$USB_NET" dev "$USB_DEV" ||
+            fail_policy 'failed to install USB connected route'
+    fi
+fi
+if [ "$NATIVE_OK" -eq 1 ] && [ "$USB_OK" -eq 1 ]; then
+    ip route replace table "$TABLE" default \
+        nexthop via "$NATIVE_GW" dev "$NATIVE_DEV" weight 1 \
+        nexthop via "$USB_GW" dev "$USB_DEV" weight 1 || fail_policy 'failed to install ECMP'
+    MODE="ECMP native=${NATIVE_IF}/${NATIVE_DEV} usb=${USB_DEV}"
+elif [ "$NATIVE_OK" -eq 1 ]; then
+    ip route replace table "$TABLE" default via "$NATIVE_GW" dev "$NATIVE_DEV" ||
+        fail_policy 'failed to install Native-only default'
+    MODE="native-only ${NATIVE_IF}/${NATIVE_DEV}"
+else
+    ip route replace table "$TABLE" default via "$USB_GW" dev "$USB_DEV" ||
+        fail_policy 'failed to install USB-only default'
+    MODE="usb-only $USB_DEV"
+fi
+rules="$(ip rule show | awk -v pref="$PREF:" '$1 == pref')"
+if [ "$rules" != "$PREF:$(printf '\t')from all iif br-lan lookup $TABLE" ]; then
+    while ip rule del pref "$PREF" 2>/dev/null; do :; done
+    ip rule add pref "$PREF" iif br-lan lookup "$TABLE" || fail_policy 'failed to install LAN rule'
+fi
+# Clean obsolete WAN subnets only after publishing a usable default.
+ip route show table "$TABLE" | awk '$1 != "default" && $1 != "nexthop" {print $1}' |
+while read -r stale_net; do
+    [ "$NATIVE_OK" -eq 1 ] && [ "$stale_net" = "$NATIVE_NET" ] && continue
+    [ "$USB_OK" -eq 1 ] && [ "$stale_net" = "$USB_NET" ] && continue
+    ip route del table "$TABLE" "$stale_net" 2>/dev/null || true
+done
+log "active: $MODE"
+exit 0

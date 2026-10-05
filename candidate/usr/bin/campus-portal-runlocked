@@ -1,0 +1,14 @@
+#!/bin/sh
+. /usr/lib/scut-multiwan/common.sh || exit 1
+[ "$#" -gt 0 ] || exit 2
+CMD="$1"
+shift
+case "$CMD" in
+    /usr/bin/campus-portal-login.impl|/usr/bin/campus-portal-logout.impl|/usr/bin/campus-usb-login.impl|/usr/bin/campus-usb-logout.impl) ;;
+    *) exit 2;;
+esac
+[ -x "$CMD" ] || exit 127
+mw_require_active || exit $?
+mw_portal_lock 30 || exit $?
+"$CMD" "$@"
+exit $?

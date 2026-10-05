@@ -1,0 +1,103 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+CONF="/etc/campus-portal.conf"
+DEV="$1"
+
+[ -r "$CONF" ] || exit 1
+mw_require_active || exit $?
+mw_portal_lock 30 || exit $?
+. "$CONF"
+
+USER="${USB_USER:-$NATIVE_USER}"
+
+case "$DEV" in
+    phy0-sta*|phy2-sta*|phy3-sta*|mtusb*)
+        ;;
+    *)
+        logger -t campus-usb-portal \
+            "refusing non-USB interface: $DEV"
+        exit 1
+        ;;
+esac
+
+IP="$(
+    ip -4 -o addr show dev "$DEV" scope global 2>/dev/null |
+    awk '
+        NR == 1 {
+            split($4, a, "/")
+            print a[1]
+            exit
+        }
+    '
+)"
+
+[ -n "$IP" ] || [ -n "$2" ] || exit 1
+
+
+case "$DEV" in
+    phy3-sta*|mtusb*) ;;
+    *) [ -n "$2" ] || exit 1;;
+esac
+if [ -n "$2" ]; then
+    mw_session_read usb || exit 75
+    [ "$MW_SESSION_IP" = "$2" ] || exit 75
+    IP="$2"
+fi
+mw_ipv4 "$IP" || exit 1
+mw_require_active 20 || exit $?
+
+IP_INT="$(
+    echo "$IP" |
+    awk -F. '
+        NF == 4 {
+            printf "%.0f\n", ($1 * 16777216) +
+                  ($2 * 65536) + ($3 * 256) + $4
+        }
+    '
+)"
+
+[ -n "$IP_INT" ] || exit 1
+
+case "$USER" in
+    *@wifi) ACCOUNT="$USER";;
+    *) ACCOUNT="${USER}@wifi";;
+esac
+
+RESP="$(
+    curl -4 \
+        --interface "$DEV" \
+        --silent \
+        --show-error \
+        --max-time 15 \
+        --get \
+        'https://s.scut.edu.cn:802/eportal/portal/mac/unbind' \
+        --data-urlencode 'callback=dr1002' \
+        --data-urlencode "user_account=$ACCOUNT" \
+        --data-urlencode 'wlan_user_mac=000000000000' \
+        --data-urlencode "wlan_user_ip=$IP_INT" \
+        --data-urlencode 'unbind_type=1' \
+        --data-urlencode 'jsVersion=4.1.3' \
+        --data-urlencode 'program_index=aGPKgC1754462770' \
+        --data-urlencode 'page_index=OYOGQG1754463397' \
+        --data-urlencode 'v=5947' \
+        --data-urlencode 'lang=zh' \
+        2>/dev/null
+)"
+
+if printf '%s\n' "$RESP" |
+   grep -Eq '"result"[[:space:]]*:[[:space:]]*1[[:space:]]*[,}]'; then
+
+    mw_session_clear usb "$IP" || exit 1
+    logger -t campus-usb-portal \
+        "$DEV Portal session released"
+    
+    exit 0
+
+fi
+
+logger -t campus-usb-portal \
+    "$DEV Portal logout failed"
+
+exit 1

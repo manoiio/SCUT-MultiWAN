@@ -1,0 +1,3 @@
+#!/bin/sh
+exec /usr/bin/campus-portal-runlocked \
+    /usr/bin/campus-portal-logout.impl "$@"

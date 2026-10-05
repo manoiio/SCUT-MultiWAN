@@ -1,0 +1,156 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+mw_require_active || exit $?
+mw_portal_lock 30 || exit $?
+. /etc/campus-portal.conf
+
+DEV="$1"
+
+if [ -z "$DEV" ]; then
+    echo "Usage: campus-portal-login <device>"
+    exit 1
+fi
+
+case "$DEV" in
+    phy0-sta*|phy2-sta*)
+        USER="$NATIVE_USER"
+        PASS="$NATIVE_PASS"
+        ;;
+    *)
+        echo "Unsupported device: $DEV"
+        exit 1
+        ;;
+esac
+
+log() {
+    logger -t campus-portal "$*"
+    echo "$*"
+}
+
+internet_online() { mw_online "$DEV" 8; }
+
+if ! ip link show "$DEV" >/dev/null 2>&1; then
+    log "$DEV: device does not exist"
+    exit 1
+fi
+
+USER_IP="$(
+    ip -4 -o addr show dev "$DEV" scope global 2>/dev/null |
+    awk 'NR==1 {
+        split($4,a,"/")
+        print a[1]
+    }'
+)"
+
+if [ -z "$USER_IP" ]; then
+    log "$DEV: no IPv4 address"
+    exit 1
+fi
+
+log "$DEV: IP=$USER_IP"
+
+# 已认证时不重复登录
+
+if internet_online; then
+    mw_record_online native "$DEV" "$USER_IP" || exit $?
+    log "$DEV: existing Portal session is already online"
+    exit 0
+fi
+
+# 未认证：触发 Portal 并读取当前 AC
+
+REDIRECT="$(
+    curl -4 \
+        --interface "$DEV" \
+        --silent \
+        --show-error \
+        --max-time 8 \
+        --output /dev/null \
+        --write-out '%{redirect_url}' \
+        'http://neverssl.com/' 2>/dev/null
+)"
+
+mw_scUT_redirect "$REDIRECT" || {
+    log "$DEV: no explicit SCUT Portal redirect; login refused"
+    exit 1
+}
+
+AC_IP="$(
+    printf '%s\n' "$REDIRECT" |
+    sed -n 's/.*[?&]wlanacip=\([^&]*\).*/\1/p'
+)"
+
+if [ -z "$AC_IP" ]; then
+    AC_IP="$(
+        printf '%s\n' "$REDIRECT" |
+        sed -n 's/.*[?&]wlan_ac_ip=\([^&]*\).*/\1/p'
+    )"
+fi
+
+if [ -z "$AC_IP" ]; then
+    log "$DEV: unable to obtain wlan_ac_ip"
+    exit 1
+fi
+
+log "$DEV: AC=$AC_IP"
+
+mw_prepare_login native "$DEV" "$USER_IP" || exit $?
+mw_require_active 20 || exit $?
+
+RESPONSE="$(
+    printf '%s' "$PASS" | curl -4 \
+        --interface "$DEV" \
+        --silent \
+        --show-error \
+        --max-time 12 \
+        --referer 'https://s.scut.edu.cn/' \
+        --user-agent 'Mozilla/5.0' \
+        --get \
+        --data-urlencode 'callback=dr1003' \
+        --data-urlencode 'login_method=1' \
+        --data-urlencode "user_account=$USER" \
+        --data-urlencode "user_password@/proc/self/fd/0" \
+        --data-urlencode "wlan_user_ip=$USER_IP" \
+        --data-urlencode 'wlan_user_ipv6=' \
+        --data-urlencode 'wlan_user_mac=000000000000' \
+        --data-urlencode "wlan_ac_ip=$AC_IP" \
+        --data-urlencode 'wlan_ac_name=' \
+        --data-urlencode 'jsVersion=4.1.3' \
+        --data-urlencode 'terminal_type=1' \
+        --data-urlencode 'lang=zh-cn' \
+        --data-urlencode 'mac_type=0' \
+        'https://s.scut.edu.cn:802/eportal/portal/login' 2>&1
+)"
+
+: # Never persist an unfiltered Portal response.
+
+if printf '%s\n' "$RESPONSE" |
+    grep -Eq '"result"[[:space:]]*:[[:space:]]*1[[:space:]]*[,}]'; then
+    log "$DEV: Portal returned success"
+else
+    log "$DEV: Portal login failed"
+    exit 1
+fi
+
+
+
+
+i=0
+
+while [ "$i" -lt 8 ]; do
+    mw_require_active 10 || exit $?
+    sleep 2
+
+    if internet_online; then
+        log "$DEV: Internet online after Portal login"
+        exit 0
+    fi
+    
+    i=$((i + 1))
+
+done
+
+log "$DEV: Portal returned success, but Internet is still unavailable after waiting"
+exit 1

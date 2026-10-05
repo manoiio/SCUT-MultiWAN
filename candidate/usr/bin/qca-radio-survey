@@ -1,0 +1,250 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+mw_require_active 120 || exit $?
+mw_lock native-best 8 || exit $?
+
+SSID="${1:-scut-student}"
+BASE="/tmp/qca-radio-survey.$$"
+
+R0="${BASE}.radio0"
+R2="${BASE}.radio2"
+
+SCAN_IFACES=
+cleanup() {
+    for scan_iface in $SCAN_IFACES; do iw dev "$scan_iface" del >/dev/null 2>&1 || true; done
+    rm -f "${BASE}".*
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+find_managed_iface() {
+    PHY="$1"
+    NUM="${PHY#phy}"
+    HDR="phy#${NUM}"
+
+    iw dev 2>/dev/null | awk -v hdr="$HDR" '
+        $1 == hdr {
+            inside=1
+            ifname=""
+            next
+        }
+    
+        /^phy#/ {
+            inside=0
+            ifname=""
+        }
+    
+        inside && $1 == "Interface" {
+            ifname=$2
+            next
+        }
+    
+        inside && $1 == "type" && $2 == "managed" && ifname != "" {
+            print ifname
+            exit
+        }
+    '
+
+}
+
+extract_matches() {
+    SCANFILE="$1"
+    OUTFILE="$2"
+
+    awk -v want="$SSID" '
+        function emit() {
+            if (ssid == want && signal != "" && bssid != "") {
+                printf "%.0f %s %s\n", signal, bssid, freq
+            }
+        }
+    
+        $1 == "BSS" {
+            emit()
+    
+            bssid=$2
+            sub(/\(.*/, "", bssid)
+    
+            freq=""
+            signal=""
+            ssid=""
+            next
+        }
+    
+        $1 == "freq:" {
+            freq=$2
+            next
+        }
+    
+        $1 == "signal:" {
+            signal=$2
+            next
+        }
+    
+        $1 == "SSID:" {
+            line=$0
+            sub(/^[ \t]*SSID:[ \t]*/, "", line)
+            ssid=line
+            next
+        }
+    
+        END {
+            emit()
+        }
+    ' "$SCANFILE" | sort -nr > "$OUTFILE"
+
+}
+
+channel_from_freq() {
+    F="${1%%.*}"
+
+    case "$F" in
+        ''|*[!0-9]*)
+            echo "?"
+            return
+            ;;
+    esac
+    
+    if [ "$F" -ge 5000 ] && [ "$F" -le 5895 ]; then
+        echo $(( (F - 5000) / 5 ))
+    else
+        echo "?"
+    fi
+
+}
+
+rate_for_signal() {
+    echo "adaptive"
+}
+
+scan_radio() {
+    mw_require_active 40 || return $?
+    RADIO="$1"
+    PHY="$2"
+    RESULT="$3"
+
+    NUM="${PHY#phy}"
+    SCANFILE="${BASE}.${RADIO}.scan"
+    ERRFILE="${BASE}.${RADIO}.err"
+    
+    IFACE="$(find_managed_iface "$PHY")"
+    TEMP=0
+    
+    if [ -n "$IFACE" ]; then
+        METHOD="existing interface $IFACE"
+    else
+        IFACE="qscan${NUM}"
+    
+        iw dev "$IFACE" del >/dev/null 2>&1
+    
+        if ! iw phy "$PHY" interface add "$IFACE" type managed >/dev/null 2>&1; then
+            echo "$RADIO: cannot create temporary scan interface on $PHY"
+            : > "$RESULT"
+            return 1
+        fi
+    
+        SCAN_IFACES="$SCAN_IFACES $IFACE"
+        if ! ip link set "$IFACE" up >/dev/null 2>&1; then
+            iw dev "$IFACE" del >/dev/null 2>&1
+            echo "$RADIO: cannot bring temporary interface up"
+            : > "$RESULT"
+            return 1
+        fi
+    
+        TEMP=1
+        METHOD="temporary interface $IFACE"
+    fi
+    
+    if ! mw_run_bounded 25 iw dev "$IFACE" scan > "$SCANFILE" 2> "$ERRFILE"; then
+        mw_require_active 30 || {
+            [ "$TEMP" -eq 1 ] && iw dev "$IFACE" del >/dev/null 2>&1
+            return 76
+        }
+        sleep 1
+    
+        if ! mw_run_bounded 25 iw dev "$IFACE" scan > "$SCANFILE" 2> "$ERRFILE"; then
+            echo "$RADIO: scan failed via $IFACE"
+            cat "$ERRFILE"
+    
+            [ "$TEMP" -eq 1 ] && iw dev "$IFACE" del >/dev/null 2>&1
+    
+            : > "$RESULT"
+            return 1
+        fi
+    fi
+    
+    [ "$TEMP" -eq 1 ] && iw dev "$IFACE" del >/dev/null 2>&1
+    
+    extract_matches "$SCANFILE" "$RESULT"
+    
+    echo
+    echo "===== $RADIO / $PHY ====="
+    echo "scan via: $METHOD"
+    
+    if [ ! -s "$RESULT" ]; then
+        echo "No $SSID found"
+        return 0
+    fi
+    
+    N=0
+    
+    head -n 5 "$RESULT" | while read SIGNAL BSSID FREQ; do
+        N=$((N + 1))
+        CHANNEL="$(channel_from_freq "$FREQ")"
+    
+        echo "#$N  ${SIGNAL} dBm  ch${CHANNEL}  ${FREQ} MHz  ${BSSID}"
+    done
+    
+    BEST_SIGNAL="$(awk 'NR==1 {print $1}' "$RESULT")"
+    BEST_BSSID="$(awk 'NR==1 {print $2}' "$RESULT")"
+    BEST_FREQ="$(awk 'NR==1 {print $3}' "$RESULT")"
+    BEST_CHANNEL="$(channel_from_freq "$BEST_FREQ")"
+    RATE="$(rate_for_signal "$BEST_SIGNAL")"
+    
+    echo
+    echo "BEST:"
+    echo "  BSSID: $BEST_BSSID"
+    echo "  Channel: $BEST_CHANNEL"
+    echo "  Signal: ${BEST_SIGNAL} dBm"
+    echo "  Proposed rate: HE NSS2 $RATE"
+
+}
+
+scan_radio radio0 phy0 "$R0"
+scan_radio radio2 phy2 "$R2"
+
+echo
+echo "===== OVERALL ====="
+
+if [ ! -s "$R0" ] && [ ! -s "$R2" ]; then
+    echo "No usable $SSID found on radio0 or radio2"
+    exit 1
+fi
+
+if [ ! -s "$R0" ]; then
+    WINNER="radio2"
+    SIGNAL="$(awk 'NR==1 {print $1}' "$R2")"
+elif [ ! -s "$R2" ]; then
+    WINNER="radio0"
+    SIGNAL="$(awk 'NR==1 {print $1}' "$R0")"
+else
+    S0="$(awk 'NR==1 {print $1}' "$R0")"
+    S2="$(awk 'NR==1 {print $1}' "$R2")"
+
+    if [ "$S2" -gt "$S0" ]; then
+        WINNER="radio2"
+        SIGNAL="$S2"
+    else
+        WINNER="radio0"
+        SIGNAL="$S0"
+    fi
+
+fi
+
+RATE="$(rate_for_signal "$SIGNAL")"
+
+echo "Best native radio: $WINNER"
+echo "Best signal: ${SIGNAL} dBm"
+echo "TX policy: $RATE"

@@ -1,0 +1,933 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+SSID='scut-student'
+HYSTERESIS=6
+
+BASE="/tmp/native-best.$$"
+CHANGED=0
+SCAN_IFACES=
+cleanup() {
+    for scan_iface in $SCAN_IFACES; do iw dev "$scan_iface" del >/dev/null 2>&1 || true; done
+    rm -f "${BASE}".*
+    if [ "$CHANGED" -eq 1 ]; then
+        /usr/bin/dualwan-refresh apply >/dev/null 2>&1 ||
+            logger -t native-best "WAN transition finished; dual-WAN refresh deferred/failed"
+    fi
+}
+
+log() {
+    logger -t native-best "$*"
+    echo "$*"
+}
+
+radio_phy() {
+    case "$1" in
+        radio0) echo phy0 ;;
+        radio2) echo phy2 ;;
+    esac
+}
+
+radio_dev() {
+    case "$1" in
+        radio0) echo phy0-sta0 ;;
+        radio2) echo phy2-sta0 ;;
+    esac
+}
+
+radio_section() {
+    case "$1" in
+        radio0) echo wifinet3 ;;
+        radio2) echo wifinet4 ;;
+    esac
+}
+
+radio_wan() {
+    case "$1" in
+        radio0) echo wan1 ;;
+        radio2) echo wan2 ;;
+    esac
+}
+
+other_radio() {
+    if [ "$1" = 'radio0' ]; then
+        echo radio2
+    else
+        echo radio0
+    fi
+}
+
+connected() {
+    DEV="$(radio_dev "$1")"
+
+    iw dev "$DEV" link 2>/dev/null |
+        grep -q '^Connected to'
+
+}
+
+wan_up() {
+    WAN="$(radio_wan "$1")"
+
+    ifstatus "$WAN" 2>/dev/null |
+        grep -q '"up": true'
+
+}
+
+#
+
+# 强公网检测：
+
+# HTTPS 真正能够出去才算在线。
+
+#
+internet_online() {
+    local dev
+    dev="$(radio_dev "$1")"
+    mw_online "$dev" 8
+}
+
+#
+
+# WAN / DHCP / Portal 数据面恢复可能存在数秒延迟。
+
+#
+
+# 最多尝试 8 次，每次间隔 2 秒。
+
+# 第一轮立即检测，因此通常不会产生额外等待。
+
+#
+wait_internet() {
+    RADIO="$1"
+    I=0
+
+    while [ "$I" -lt 8 ]; do
+        mw_require_active 10 || return $?
+        if internet_online "$RADIO"; then
+            return 0
+        fi
+    
+        I=$((I + 1))
+    
+        if [ "$I" -lt 8 ]; then
+            sleep 2
+        fi
+    done
+    
+    return 1
+
+}
+
+current_radio() {
+    R0=0
+    R2=0
+
+    connected radio0 && R0=1
+    connected radio2 && R2=1
+    
+    if [ "$R0" -eq 1 ] && [ "$R2" -eq 0 ]; then
+        echo radio0
+    
+    elif [ "$R2" -eq 1 ] && [ "$R0" -eq 0 ]; then
+        echo radio2
+    
+    elif [ "$R0" -eq 1 ] && [ "$R2" -eq 1 ]; then
+        echo both
+    
+    else
+        echo none
+    fi
+
+}
+
+channel_from_freq() {
+    F="${1%%.*}"
+
+    case "$F" in
+        ''|*[!0-9]*)
+            echo "?"
+            return
+            ;;
+    esac
+    
+    if [ "$F" -ge 5000 ] && [ "$F" -le 5895 ]; then
+        echo $(( (F - 5000) / 5 ))
+    else
+        echo "?"
+    fi
+
+}
+
+rate_for_signal() {
+    echo "adaptive"
+}
+
+#
+
+# 扫描某一 radio 上 scut-student 的最佳 BSSID。
+
+#
+scan_best() {
+    mw_require_active 40 || return $?
+    RADIO="$1"
+    PHY="$(radio_phy "$RADIO")"
+    DEV="$(radio_dev "$RADIO")"
+    NUM="${PHY#phy}"
+
+    SCAN="${BASE}.${RADIO}.scan"
+    RESULT="${BASE}.${RADIO}.result"
+    
+    IFACE=""
+    TEMP=0
+    
+    #
+    # 已存在 STA 时直接使用现有接口扫描。
+    #
+    if iw dev "$DEV" info >/dev/null 2>&1; then
+        IFACE="$DEV"
+    
+    else
+        #
+        # radio 当前未启用时建立临时 managed interface。
+        #
+        IFACE="nbscan${NUM}"
+    
+        iw dev "$IFACE" del >/dev/null 2>&1
+    
+        if ! iw phy "$PHY" interface add "$IFACE" type managed \
+            >/dev/null 2>&1
+        then
+            : > "$RESULT"
+            return 1
+        fi
+    
+        SCAN_IFACES="$SCAN_IFACES $IFACE"
+        ip link set "$IFACE" up >/dev/null 2>&1 || {
+            iw dev "$IFACE" del >/dev/null 2>&1
+            : > "$RESULT"
+            return 1
+        }
+    
+        TEMP=1
+    fi
+    
+    if ! mw_run_bounded 25 iw dev "$IFACE" scan > "$SCAN" 2>/dev/null; then
+        mw_require_active 30 || {
+            [ "$TEMP" -eq 1 ] && iw dev "$IFACE" del >/dev/null 2>&1
+            return 76
+        }
+        sleep 1
+        mw_run_bounded 25 iw dev "$IFACE" scan > "$SCAN" 2>/dev/null
+    fi
+    
+    if [ "$TEMP" -eq 1 ]; then
+        iw dev "$IFACE" del >/dev/null 2>&1
+    fi
+    
+    awk -v want="$SSID" '
+        function emit() {
+            if (ssid == want && signal != "" && bssid != "")
+                printf "%.0f %s %s\n", signal, bssid, freq
+        }
+    
+        $1 == "BSS" {
+            emit()
+    
+            bssid=$2
+            sub(/\(.*/, "", bssid)
+    
+            freq=""
+            signal=""
+            ssid=""
+    
+            next
+        }
+    
+        $1 == "freq:" {
+            freq=$2
+            next
+        }
+    
+        $1 == "signal:" {
+            signal=$2
+            next
+        }
+    
+        $1 == "SSID:" {
+            line=$0
+            sub(/^[ \t]*SSID:[ \t]*/, "", line)
+            ssid=line
+            next
+        }
+    
+        END {
+            emit()
+        }
+    ' "$SCAN" |
+        sort -nr |
+        head -1 > "$RESULT"
+    
+    [ -s "$RESULT" ]
+
+}
+
+signal_of() {
+    awk 'NR==1 {print $1}' "${BASE}.$1.result"
+}
+
+bssid_of() {
+    awk 'NR==1 {print $2}' "${BASE}.$1.result"
+}
+
+freq_of() {
+    awk 'NR==1 {print $3}' "${BASE}.$1.result"
+}
+
+#
+
+# 启动候选 radio。
+
+#
+
+# 临时设置 metric=100，避免候选在验证完成前
+
+# 抢走当前默认出口。
+
+#
+enable_candidate() {
+    mw_require_active 40 || return $?
+    CHANGED=1
+    RADIO="$1"
+    SEC="$(radio_section "$RADIO")"
+    WAN="$(radio_wan "$RADIO")"
+
+    log "Enabling candidate $RADIO"
+    
+    uci set network."$WAN".metric='100'
+    
+    uci -q delete wireless."$RADIO".disabled
+    uci -q delete wireless."$SEC".disabled
+    
+    uci commit network
+    uci commit wireless
+    
+    wifi up "$RADIO" >/dev/null 2>&1
+    
+    sleep 3
+    
+    ifup "$WAN" >/dev/null 2>&1
+    
+    I=0
+    
+    while [ "$I" -lt 25 ]; do
+        if connected "$RADIO" && wan_up "$RADIO"; then
+    
+            DEV="$(radio_dev "$RADIO")"
+    
+            /usr/bin/fix-qca-sta-rate "$DEV" \
+                >/dev/null 2>&1 || return $?
+    
+            log "$RADIO association and DHCP ready"
+    
+            return 0
+        fi
+    
+        I=$((I + 1))
+        sleep 1
+    done
+    
+    log "$RADIO association/DHCP timeout"
+    
+    return 1
+
+}
+
+#
+
+# 完全关闭某一 Native radio。
+
+#
+disable_radio() {
+    mw_require_active 40 || return $?
+    CHANGED=1
+    RADIO="$1"
+    SEC="$(radio_section "$RADIO")"
+    WAN="$(radio_wan "$RADIO")"
+
+    log "Disabling $RADIO"
+    
+    uci set wireless."$SEC".disabled='1'
+    uci set wireless."$RADIO".disabled='1'
+    
+    uci commit wireless
+    
+    ifdown "$WAN" >/dev/null 2>&1
+    wifi down "$RADIO" >/dev/null 2>&1
+    
+    uci -q delete network."$WAN".metric
+    uci commit network
+
+}
+
+#
+
+# 将候选 WAN 从 metric=100 恢复为正式主线路。
+
+#
+
+# OpenWrt 运行中的 DHCP route 不会因为单纯删除 UCI metric
+
+# 自动更新，所以需要重新 ifdown/ifup WAN。
+
+#
+make_primary() {
+    mw_require_active 40 || return $?
+    CHANGED=1
+    RADIO="$1"
+    WAN="$(radio_wan "$RADIO")"
+
+    log "Promoting $RADIO to primary"
+    
+    uci -q delete network."$WAN".metric
+    uci commit network
+    
+    ifdown "$WAN" >/dev/null 2>&1
+    
+    sleep 1
+    
+    ifup "$WAN" >/dev/null 2>&1
+    
+    #
+    # 这里不再假定固定 3 秒后一定恢复。
+    # 后续统一由 wait_internet() 判断。
+    #
+    sleep 2
+
+}
+
+#
+
+# 新线路认证失败后的恢复。
+
+#
+rollback_old() {
+    local old new olddev newdev
+    old="$1"; new="$2"
+    olddev="$(radio_dev "$old")"; newdev="$(radio_dev "$new")"
+    log "Switch failed; releasing candidate before Portal rollback to $old"
+    mw_session_read native || return 75
+    if [ "$MW_SESSION_IP" != none ]; then
+        if ! /usr/bin/campus-portal-logout "$olddev" "$MW_SESSION_IP"; then
+            log "CRITICAL: candidate release unconfirmed; rollback login refused"
+            return 1
+        fi
+    fi
+    disable_radio "$new" || return $?
+    if /usr/bin/campus-portal-login "$olddev" && wait_internet "$old"; then
+        log "Rollback successful: $old restored"
+    else
+        log "CRITICAL: rollback Internet verification failed"
+    fi
+    return 1
+}
+
+#
+
+# Portal-aware Native 切换。
+
+#
+
+# 核心原则：
+
+#
+
+# 1. 候选先关联 + DHCP。
+
+# 2. 候选如果已有有效 Portal session，直接使用。
+
+# 3. 候选没有认证时：
+
+#       先精准注销 OLD
+
+#       再登录 NEW
+
+#    避免在未来 Native + USB 双线路状态下
+
+#    产生第三个 Portal session。
+
+# 4. NEW 认证失败则重新认证 OLD。
+
+#
+portal_safe_switch() {
+    OLD="$1"
+    NEW="$2"
+
+    [ "$OLD" = "$NEW" ] && return 0
+    
+    OLDDEV="$(radio_dev "$OLD")"
+    NEWDEV="$(radio_dev "$NEW")"
+    
+    log "Preparing candidate $NEW while keeping $OLD associated"
+    
+    if ! enable_candidate "$NEW"; then
+        log "$NEW association/DHCP failed; keeping $OLD"
+    
+        disable_radio "$NEW" || return $?
+    
+        return 1
+    fi
+    
+    #
+    # CASE 1:
+    # 候选本身已经有有效 Portal session。
+    #
+    if internet_online "$NEW"; then
+    
+        log "$NEW already has a valid Portal session"
+    
+        #
+        # 释放 OLD 的 Portal 会话，避免浪费会话槽位。
+        #
+        if :; then
+    
+            if /usr/bin/campus-portal-logout "$OLDDEV"; then
+                log "$OLD Portal session released"
+            else
+                log "Unable to confirm old session release; aborting switch"
+                disable_radio "$NEW" || return $?
+                return 1
+            fi
+        fi
+    
+        /usr/bin/campus-portal-login "$NEWDEV" || return $?
+        disable_radio "$OLD" || return $?
+    
+        make_primary "$NEW" || return $?
+    
+        /usr/bin/fix-qca-sta-rate "$NEWDEV" \
+            >/dev/null 2>&1 || return $?
+    
+        #
+        # 修复点：
+        # WAN transition 后不再立即单次判断。
+        #
+        if wait_internet "$NEW"; then
+            log "Native switched: $OLD -> $NEW"
+            return 0
+        fi
+    
+        log "WARNING: $NEW still unavailable after final WAN transition"
+    
+        return 1
+    fi
+    
+    #
+    # CASE 2:
+    # 候选没有 Portal 权限。
+    #
+    # 无论 OLD 的公网探测是否成功，都先确认会话释放：
+    # 先精准释放 OLD，
+    # 再登录 NEW。
+    #
+    log "$NEW has no Portal session"
+    
+    if :; then
+    
+        log "Releasing $OLD Portal session before logging in $NEW"
+    
+        if ! /usr/bin/campus-portal-logout "$OLDDEV"; then
+    
+            log "Unable to safely release $OLD Portal session; aborting switch"
+    
+            disable_radio "$NEW" || return $?
+    
+            return 1
+        fi
+    
+        log "$OLD Portal session released"
+    fi
+    
+    #
+    # NEW Portal login
+    #
+    log "Logging Portal in on $NEW"
+    
+    if ! /usr/bin/campus-portal-login "$NEWDEV"; then
+    
+        log "$NEW Portal login failed"
+    
+        rollback_old "$OLD" "$NEW"
+    
+        return 1
+    fi
+    
+    #
+    # campus-portal-login 自己已经带等待，
+    # 这里再进行最终确认。
+    #
+    if ! wait_internet "$NEW"; then
+    
+        log "$NEW Portal login returned success but Internet verification failed"
+    
+        rollback_old "$OLD" "$NEW"
+    
+        return 1
+    fi
+    
+    log "$NEW Portal verified"
+    
+    #
+    # NEW 已经真正可用。
+    #
+    disable_radio "$OLD" || return $?
+    
+    make_primary "$NEW" || return $?
+    
+    /usr/bin/fix-qca-sta-rate "$NEWDEV" \
+        >/dev/null 2>&1 || return $?
+    
+    #
+    # 最终 WAN transition 验证。
+    #
+    if wait_internet "$NEW"; then
+    
+        log "Native switched: $OLD -> $NEW"
+    
+        return 0
+    fi
+    
+    log "WARNING: $NEW still unavailable after final WAN transition"
+    
+    return 1
+
+}
+
+quiet_now() { mw_quiet_now; }
+
+survey() {
+    local scan_rc
+    scan_best radio0; scan_rc=$?
+    case "$scan_rc" in 75|76) return "$scan_rc";; esac
+    scan_best radio2; scan_rc=$?
+    case "$scan_rc" in 75|76) return "$scan_rc";; esac
+
+    echo "===== Native survey ====="
+    
+    for R in radio0 radio2; do
+    
+        S="$(signal_of "$R")"
+    
+        if [ -n "$S" ]; then
+    
+            F="$(freq_of "$R")"
+            C="$(channel_from_freq "$F")"
+    
+            echo "$R: ${S} dBm  ch${C}  $(bssid_of "$R")  $(rate_for_signal "$S")"
+    
+        else
+            echo "$R: unavailable"
+        fi
+    done
+
+}
+
+best_radio() {
+    S0="$(signal_of radio0)"
+    S2="$(signal_of radio2)"
+
+    if [ -z "$S0" ] && [ -z "$S2" ]; then
+        return 1
+    
+    elif [ -z "$S0" ]; then
+        BEST='radio2'
+    
+    elif [ -z "$S2" ]; then
+        BEST='radio0'
+    
+    elif [ "$S2" -gt "$S0" ]; then
+        BEST='radio2'
+    
+    else
+        BEST='radio0'
+    fi
+    
+    return 0
+
+}
+
+apply_best() {
+    survey || return $?
+
+    best_radio || {
+        log "No usable $SSID found"
+        return 1
+    }
+    
+    CURRENT="$(current_radio)"
+    
+    echo
+    echo "Current: $CURRENT"
+    echo "Strongest: $BEST"
+    
+    case "$CURRENT" in
+    
+        radio0|radio2)
+    
+            if [ "$CURRENT" = "$BEST" ]; then
+    
+                DEV="$(radio_dev "$CURRENT")"
+    
+                /usr/bin/fix-qca-sta-rate "$DEV" \
+                    >/dev/null 2>&1 || return $?
+    
+                log "Keep $CURRENT: already best"
+    
+                return 0
+            fi
+    
+            CURSIG="$(signal_of "$CURRENT")"
+            BESTSIG="$(signal_of "$BEST")"
+            if [ -z "$CURSIG" ]; then
+                CURSIG="$(iw dev "$(radio_dev "$CURRENT")" station dump 2>/dev/null |
+                    awk '/signal avg:/ {print int($3); exit}')"
+            fi
+            case "$CURSIG" in ''|*[!0-9-]*) log "Current RSSI unavailable; switch deferred"; return 1;; esac
+    
+            DIFF=$((BESTSIG - CURSIG))
+    
+            if [ "$DIFF" -lt "$HYSTERESIS" ]; then
+    
+                log "Keep $CURRENT: improvement ${DIFF}dB < ${HYSTERESIS}dB"
+    
+                return 0
+            fi
+    
+            log "$BEST is ${DIFF}dB stronger"
+    
+            portal_safe_switch "$CURRENT" "$BEST"
+            ;;
+    
+        both)
+    
+            #
+            # 两个 Native radio 同时存在：
+            # 保留最佳一个。
+            #
+            LOSER="$(other_radio "$BEST")"
+            LOSERDEV="$(radio_dev "$LOSER")"
+    
+            log "Both radios active; keeping $BEST and removing $LOSER"
+    
+            if :; then
+    
+                if /usr/bin/campus-portal-logout "$LOSERDEV"; then
+                    log "$LOSER Portal session released"
+                else
+                    log "Unable to release loser session; keeping both interfaces for recovery"
+                    return 1
+                fi
+            fi
+    
+            disable_radio "$LOSER" || return $?
+    
+            /usr/bin/campus-portal-login "$(radio_dev "$BEST")" || return $?
+            make_primary "$BEST" || return $?
+    
+            DEV="$(radio_dev "$BEST")"
+    
+            /usr/bin/fix-qca-sta-rate "$DEV" \
+                >/dev/null 2>&1 || return $?
+    
+            if wait_internet "$BEST"; then
+                log "$BEST is now the only active Native uplink"
+                return 0
+            fi
+    
+            log "WARNING: $BEST Internet did not recover after cleanup"
+    
+            return 1
+            ;;
+    
+        none)
+    
+            log "No active Native radio; starting $BEST"
+    
+            if ! enable_candidate "$BEST"; then
+                log "$BEST failed to associate/DHCP"
+                return 1
+            fi
+    
+            DEV="$(radio_dev "$BEST")"
+    
+            if ! internet_online "$BEST"; then
+    
+                if ! /usr/bin/campus-portal-login "$DEV"; then
+                    log "$BEST Portal login failed"
+                    return 1
+                fi
+            fi
+    
+            if ! wait_internet "$BEST"; then
+                log "$BEST Internet unavailable after Portal login"
+                return 1
+            fi
+    
+            make_primary "$BEST" || return $?
+    
+            /usr/bin/fix-qca-sta-rate "$DEV" \
+                >/dev/null 2>&1 || return $?
+    
+            if wait_internet "$BEST"; then
+                log "$BEST started successfully"
+                return 0
+            fi
+    
+            log "$BEST Internet unavailable after final WAN transition"
+    
+            return 1
+            ;;
+    esac
+
+}
+
+force_switch() {
+    TARGET="$1"
+
+    case "$TARGET" in
+        radio0|radio2)
+            ;;
+        *)
+            echo "Usage: native-best switch radio0|radio2"
+            exit 1
+            ;;
+    esac
+    
+    CURRENT="$(current_radio)"
+    
+    case "$CURRENT" in
+    
+        radio0|radio2)
+    
+            if [ "$CURRENT" = "$TARGET" ]; then
+    
+                log "$TARGET is already active"
+    
+                DEV="$(radio_dev "$TARGET")"
+    
+                /usr/bin/fix-qca-sta-rate "$DEV" \
+                    >/dev/null 2>&1 || return $?
+    
+                return 0
+            fi
+    
+            portal_safe_switch "$CURRENT" "$TARGET"
+            ;;
+    
+        both)
+    
+            LOSER="$(other_radio "$TARGET")"
+            LOSERDEV="$(radio_dev "$LOSER")"
+    
+            log "Both radios active; keeping requested $TARGET"
+    
+            if :; then
+    
+                if /usr/bin/campus-portal-logout "$LOSERDEV"; then
+                    log "$LOSER Portal session released"
+                else
+                    log "Unable to release loser session; keeping both interfaces for recovery"
+                    return 1
+                fi
+            fi
+    
+            disable_radio "$LOSER" || return $?
+    
+            /usr/bin/campus-portal-login "$(radio_dev "$TARGET")" || return $?
+            make_primary "$TARGET" || return $?
+    
+            DEV="$(radio_dev "$TARGET")"
+    
+            /usr/bin/fix-qca-sta-rate "$DEV" \
+                >/dev/null 2>&1 || return $?
+    
+            if wait_internet "$TARGET"; then
+                log "$TARGET is now active"
+                return 0
+            fi
+    
+            log "WARNING: $TARGET Internet unavailable after final WAN transition"
+    
+            return 1
+            ;;
+    
+        none)
+    
+            log "No active radio; starting requested $TARGET"
+    
+            if ! enable_candidate "$TARGET"; then
+                log "$TARGET association/DHCP failed"
+                return 1
+            fi
+    
+            DEV="$(radio_dev "$TARGET")"
+    
+            if ! internet_online "$TARGET"; then
+    
+                if ! /usr/bin/campus-portal-login "$DEV"; then
+                    log "$TARGET Portal login failed"
+                    return 1
+                fi
+            fi
+    
+            if ! wait_internet "$TARGET"; then
+                log "$TARGET Internet unavailable after Portal login"
+                return 1
+            fi
+    
+            make_primary "$TARGET" || return $?
+    
+            /usr/bin/fix-qca-sta-rate "$DEV" \
+                >/dev/null 2>&1 || return $?
+    
+            if wait_internet "$TARGET"; then
+                log "$TARGET started successfully"
+                return 0
+            fi
+    
+            log "WARNING: $TARGET Internet unavailable after final WAN transition"
+    
+            return 1
+            ;;
+    esac
+
+}
+
+status_cmd() {
+    echo "Active: $(current_radio)"
+    for status_dev in phy0-sta0 phy2-sta0; do
+        echo "===== $status_dev ====="
+        iw dev "$status_dev" link 2>/dev/null || true
+        iw dev "$status_dev" station dump 2>/dev/null |
+            grep -E 'signal|tx bitrate:|rx bitrate:|tx packets:|tx failed:' || true
+    done
+}
+
+case "$1" in
+    status) status_cmd; exit 0;;
+    apply|auto|switch) ;;
+    survey) ;;
+    *) echo "Usage: native-best status|survey|apply|auto|switch radio0|radio2"; exit 2;;
+esac
+mw_require_active 300 || exit $?
+mw_lock native-best 8 || exit $?
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+if [ "$1" = survey ]; then survey; exit $?; fi
+mw_portal_lock 30 || exit $?
+case "$1" in
+    apply|auto) apply_best;;
+    switch) force_switch "$2";;
+esac
+exit $?

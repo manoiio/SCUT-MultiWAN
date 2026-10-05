@@ -1,0 +1,66 @@
+SCUT-MultiWAN stability repair — 2026-10-05
+
+Router: Linksys MX4200 V1 (no SSH password is stored in this repository).
+Production install: 13 files, SHA-256 checked, BusyBox ash syntax checked.
+Every replacement was validated under /tmp, copied to the destination
+filesystem, and atomically renamed beside its final target.
+
+Original files and router-only credential backup:
+  /root/scut-multiwan-backup-20261005-2005 (mode 700)
+Manual rollback on the router:
+  sh /root/scut-multiwan-backup-20261005-2005/rollback.sh
+The rollback restores the original scripts and the pre-deployment rate/survey
+state. It does not reset wireless/network configuration or recreate sessions.
+
+Repairs:
+* Stable flock files replace mkdir/PID locks; never unlink the new lock files.
+* The global Portal lock covers a whole Native transition. Nested wrappers
+  reuse the actual inherited FD 9, rather than trusting an environment flag.
+* Both .impl entry points enforce the Portal lock and quiet period themselves.
+* Persistent /etc/scut-multiwan/{native,usb}.session records track IP/device.
+  Login journals the IP before a request, including ambiguous timeouts.
+  Renewed DHCP addresses are reconciled by precise unbind of the old IP.
+  Failed/unconfirmed release blocks the next login. Missing/corrupt journals
+  also fail closed; do not delete a journal to bypass this protection.
+* Native rollback releases any candidate session before reauthenticating OLD.
+* Automatic Portal login requires a redirect to the exact campus Portal host.
+  HTTPS online checks require HTTP 200. Raw responses are not logged/stored.
+  Passwords go to curl on stdin, not through process arguments.
+* Every mutation entry point and delayed hotplug rechecks 00:06–07:29 quiet
+  time. Bounded-operation margins prevent starting work too close to 00:06.
+* native-best status is read-only; native-best survey is explicit and active.
+* iw scan is bounded by a shell helper compatible with this BusyBox build.
+  Temporary survey interfaces are cleaned on ordinary exit and trapped signals.
+* Watchdog failures preserve return codes. Failed surveys retry at the next
+  watchdog interval; only successful scans update the monotonic scan timer.
+* QCA promotions use uptime and reset after long sample gaps/counter resets.
+  QCA remains limited to phy0/phy2 and MCS7/MCS9; failed promotion rollback
+  cannot be reported as success. USB keeps normal rate control.
+* ECMP refresh checks route-install errors in dual and single-WAN modes.
+  A healthy refresh retains the valid iif br-lan rule and atomically replaces
+  the default. Native/USB recovery finishes with an ECMP refresh.
+
+Verification:
+* 38 isolated regression groups passed under the router's actual BusyBox ash.
+  All network, radio, Portal, and route operations in that suite were mocked.
+* Real router curl encoded a fictional password correctly via /proc/self/fd/0.
+* Live native-watchdog, usb-watchdog, dualwan-refresh apply all returned 0.
+* Both interface-bound HTTPS checks remained online after installation.
+* Native radio0 TX MCS9 / RX MCS11; USB TX/RX MCS11, TX failed 0.
+* Table 103 has weight 1 + weight 1; rule is pref 103 iif br-lan lookup 103.
+* All 13 installed checksums match the candidates. Wireless, network,
+  firewall, system, cron and credentials are byte-identical to the backup.
+* LAN client HTTPS returned 200 when bound to Mac en0 with direct resolution.
+* Post-deployment cron observed: Native 21:00, USB 21:02, ECMP 21:04.
+* Automatic deployment rollback was disarmed after verification.
+* Existing Portal sessions were not deliberately logged out/recreated.
+  Fault/timeout/switch/rollback paths were verified in isolation, not by
+  intentionally disrupting the production sessions. Long-term roaming and
+  overnight behavior still require elapsed production operation.
+
+Repository contents:
+  candidate/ — installed candidates plus the four unchanged Portal wrappers.
+  tests/build_router_tests.py — self-contained isolated test generator.
+  deployment/ — historical install/rollback scripts and checksum manifest.
+Original backups, generated bundles, real configs and one-off migration
+transformations remain local and are excluded from Git.

@@ -1,0 +1,158 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+CONF="/etc/campus-portal.conf"
+DEV="$1"
+
+[ -r "$CONF" ] || {
+    logger -t campus-usb-portal "missing $CONF"
+    exit 1
+}
+
+mw_require_active || exit $?
+mw_portal_lock 30 || exit $?
+. "$CONF"
+
+USER="${USB_USER:-$NATIVE_USER}"
+PASS="${USB_PASS:-$NATIVE_PASS}"
+
+[ -n "$USER" ] && [ -n "$PASS" ] || {
+    logger -t campus-usb-portal "missing USB Portal credentials"
+    exit 1
+}
+
+case "$DEV" in
+    phy3-sta*|mtusb*)
+        ;;
+    *)
+        logger -t campus-usb-portal \
+            "refusing non-USB interface: $DEV"
+        exit 1
+        ;;
+esac
+
+IP="$(
+    ip -4 -o addr show dev "$DEV" scope global 2>/dev/null |
+    awk '
+        NR == 1 {
+            split($4, a, "/")
+            print a[1]
+            exit
+        }
+    '
+)"
+
+[ -n "$IP" ] || {
+    logger -t campus-usb-portal \
+        "$DEV has no IPv4 address"
+    exit 1
+}
+
+online() { mw_online "$DEV" 8; }
+
+if online; then
+    mw_record_online usb "$DEV" "$IP" || exit $?
+    logger -t campus-usb-portal \
+        "$DEV already online"
+    exit 0
+fi
+
+REDIR="$(
+    curl -4 \
+        --interface "$DEV" \
+        --silent \
+        --show-error \
+        --output /dev/null \
+        --write-out '%{redirect_url}' \
+        --max-time 8 \
+        http://neverssl.com/ \
+        2>/dev/null
+)"
+
+mw_scUT_redirect "$REDIR" || {
+    logger -t campus-usb-portal "no explicit SCUT Portal redirect; login refused"
+    exit 1
+}
+
+ACIP="$(
+    printf '%s\n' "$REDIR" |
+    sed -n \
+        's/.*[?&]wlanacip=\([^&]*\).*/\1/p'
+)"
+
+if [ -z "$ACIP" ]; then
+    ACIP="$(
+        printf '%s\n' "$REDIR" |
+        sed -n \
+            's/.*[?&]wlan_ac_ip=\([^&]*\).*/\1/p'
+    )"
+fi
+
+[ -n "$ACIP" ] || {
+    logger -t campus-usb-portal \
+        "$DEV offline but no SCUT Portal redirect detected"
+    exit 1
+}
+
+mw_prepare_login usb "$DEV" "$IP" || exit $?
+mw_require_active 20 || exit $?
+
+RESP="$(
+    printf '%s' "$PASS" | curl -4 \
+        --interface "$DEV" \
+        --silent \
+        --show-error \
+        --max-time 15 \
+        --get \
+        'https://s.scut.edu.cn:802/eportal/portal/login' \
+        --data-urlencode 'callback=dr1003' \
+        --data-urlencode 'login_method=1' \
+        --data-urlencode "user_account=$USER" \
+        --data-urlencode "user_password@/proc/self/fd/0" \
+        --data-urlencode "wlan_user_ip=$IP" \
+        --data-urlencode 'wlan_user_ipv6=' \
+        --data-urlencode 'wlan_user_mac=000000000000' \
+        --data-urlencode "wlan_ac_ip=$ACIP" \
+        --data-urlencode 'wlan_ac_name=' \
+        --data-urlencode 'jsVersion=4.1.3' \
+        --data-urlencode 'terminal_type=1' \
+        --data-urlencode 'lang=zh-cn' \
+        --data-urlencode 'mac_type=0' \
+        2>/dev/null
+)"
+
+if ! printf '%s\n' "$RESP" |
+     grep -Eq '"result"[[:space:]]*:[[:space:]]*1[[:space:]]*[,}]'; then
+
+    logger -t campus-usb-portal \
+        "$DEV Portal login failed"
+    
+    exit 1
+
+fi
+
+#
+
+# Portal 返回成功以后，数据面可能延迟几秒才真正放行。
+
+#
+I=1
+
+while [ "$I" -le 8 ]; do
+    mw_require_active 10 || exit $?
+    if online; then
+        logger -t campus-usb-portal \
+            "$DEV Internet online after Portal login"
+        exit 0
+    fi
+
+    sleep 2
+    I=$((I + 1))
+
+done
+
+logger -t campus-usb-portal \
+    "$DEV Portal returned success but Internet remained unavailable"
+
+exit 1

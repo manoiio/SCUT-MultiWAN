@@ -1,0 +1,396 @@
+#!/bin/sh
+
+. /usr/lib/scut-multiwan/common.sh || exit 1
+
+SCAN_INTERVAL=14400
+WEAK_SIGNAL=-70
+WEAK_LIMIT=3
+
+STATE_DIR='/tmp/native-watchdog'
+mw_require_active || exit $?
+mw_lock native-watchdog 8 || exit $?
+trap 'exit 130' INT
+trap 'exit 143' TERM
+mkdir -p "$STATE_DIR" || exit 1
+
+log() {
+    logger -t native-watchdog "$*"
+}
+
+radio_dev() {
+    case "$1" in
+        radio0) echo phy0-sta0 ;;
+        radio2) echo phy2-sta0 ;;
+    esac
+}
+
+radio_wan() {
+    case "$1" in
+        radio0) echo wan1 ;;
+        radio2) echo wan2 ;;
+    esac
+}
+
+connected() {
+    DEV="$(radio_dev "$1")"
+
+    iw dev "$DEV" link 2>/dev/null |
+        grep -q '^Connected to'
+
+}
+
+current_radio() {
+    R0=0
+    R2=0
+
+    connected radio0 && R0=1
+    connected radio2 && R2=1
+    
+    if [ "$R0" -eq 1 ] && [ "$R2" -eq 0 ]; then
+        echo radio0
+    elif [ "$R2" -eq 1 ] && [ "$R0" -eq 0 ]; then
+        echo radio2
+    elif [ "$R0" -eq 1 ] && [ "$R2" -eq 1 ]; then
+        echo both
+    else
+        echo none
+    fi
+
+}
+
+quiet_now() { mw_quiet_now; }
+
+#
+
+# 真正的公网检测。
+
+# 不再使用 ping。
+
+#
+internet_online() {
+    local dev
+    dev="$(radio_dev "$1")"
+    mw_online "$dev" 8
+}
+
+#
+
+# HTTPS 偶发失败时进行一次短暂复核，
+
+# 避免单个请求抖动触发恢复动作。
+
+#
+internet_confirm() {
+    RADIO="$1"
+
+    internet_online "$RADIO" && return 0
+    
+    sleep 2
+    
+    internet_online "$RADIO"
+
+}
+
+#
+
+# 判断是否明确处于 Portal 未认证状态。
+
+#
+
+# 返回 0：
+
+#   neverssl 被重定向至 s.scut.edu.cn
+
+#
+portal_required() {
+    mw_require_active 10 || return $?
+    RADIO="$1"
+    DEV="$(radio_dev "$RADIO")"
+
+    RESULT="$(
+        curl -4 \
+            --interface "$DEV" \
+            --silent \
+            --show-error \
+            --max-time 7 \
+            --output /dev/null \
+            --write-out '%{redirect_url}' \
+            'http://neverssl.com/' \
+            2>/dev/null
+    )"
+    
+    mw_scUT_redirect "$RESULT"
+
+}
+
+get_signal() {
+    RADIO="$1"
+    DEV="$(radio_dev "$RADIO")"
+
+    SIGNAL="$(
+        iw dev "$DEV" station dump 2>/dev/null |
+        awk '
+            /signal avg:/ {
+                print $3
+                exit
+            }
+        '
+    )"
+    
+    if [ -z "$SIGNAL" ]; then
+        SIGNAL="$(
+            iw dev "$DEV" station dump 2>/dev/null |
+            awk '
+                /^[[:space:]]*signal:/ {
+                    print $2
+                    exit
+                }
+            '
+        )"
+    fi
+    
+    printf '%s\n' "$SIGNAL"
+
+}
+
+
+#
+
+# 每轮按 RX、网关和 TX failure 重新应用 MCS7/MCS9。
+
+#
+maintain_rate() {
+    RADIO="$1"
+    DEV="$(radio_dev "$RADIO")"
+
+    #
+    # ath11k 在重关联、roam 或接口重建后可能丢失 bitrate mask。
+    # 不再依赖 /tmp 中保存的旧状态。
+    # 每次 watchdog 都重新应用固定速率，fix-qca-sta-rate
+    # 由 fix-qca-sta-rate 根据 RX、网关和 TX failure 自适应选择 MCS7 / MCS9。
+    #
+    /usr/bin/fix-qca-sta-rate "$DEV" >/dev/null 2>&1
+    RATE_RC=$?
+    if [ "$RATE_RC" -eq 0 ]; then
+        return 0
+    fi
+
+    log "$RADIO failed to refresh fixed TX rate rc=$RATE_RC"
+    return "$RATE_RC"
+}
+
+reset_weak() {
+    rm -f "$STATE_DIR/weak.$1"
+}
+
+weak_check() {
+    RADIO="$1"
+    SIGNAL="$(get_signal "$RADIO")"
+
+    case "$SIGNAL" in
+        ''|*[!0-9-]*)
+            return 1
+            ;;
+    esac
+    
+    FILE="$STATE_DIR/weak.$RADIO"
+    
+    if [ "$SIGNAL" -le "$WEAK_SIGNAL" ]; then
+    
+        COUNT="$(cat "$FILE" 2>/dev/null)"
+        [ -z "$COUNT" ] && COUNT=0
+    
+        COUNT=$((COUNT + 1))
+    
+        echo "$COUNT" > "$FILE"
+    
+        log "$RADIO weak signal ${SIGNAL}dBm (${COUNT}/${WEAK_LIMIT})"
+    
+        if [ "$COUNT" -ge "$WEAK_LIMIT" ]; then
+            return 0
+        fi
+    
+    else
+        reset_weak "$RADIO"
+    fi
+    
+    return 1
+
+}
+
+scan_due() {
+    [ -f "$STATE_DIR/retry_scan" ] && return 0
+    NOW="$(mw_uptime)"
+    FILE="$STATE_DIR/last_scan"
+
+    LAST="$(cat "$FILE" 2>/dev/null)"
+    case "$LAST" in ''|*[!0-9]*) LAST=0;; esac
+    [ "$LAST" -le "$NOW" ] || LAST=0
+    
+    if [ "${FORCE_SCAN:-0}" = '1' ]; then
+        return 0
+    fi
+    
+    [ "$LAST" -eq 0 ] && return 0
+    [ $((NOW - LAST)) -ge "$SCAN_INTERVAL" ]
+
+}
+
+mark_scan() {
+    mw_uptime > "$STATE_DIR/last_scan"
+}
+
+run_native_best() {
+    REASON="$1"
+
+    log "native-best triggered: $REASON"
+    
+    /usr/bin/native-best apply >/tmp/native-best-watchdog.log 2>&1
+    BEST_RC=$?
+    if [ "$BEST_RC" -eq 0 ]; then
+        mark_scan
+        rm -f "$STATE_DIR/retry_scan"
+        log "native-best completed successfully"
+        return 0
+    fi
+    
+    : > "$STATE_DIR/retry_scan"
+    log "native-best deferred/failed rc=$BEST_RC; next watchdog will retry"
+    return "$BEST_RC"
+
+}
+
+#
+
+# 夜间维护窗口完全不进行恢复、扫描或 Portal 操作。
+
+#
+if quiet_now; then
+    exit 0
+fi
+
+CURRENT="$(current_radio)"
+
+case "$CURRENT" in
+    both)
+        #
+        # 正常设计下 Native 只应保留一块。
+        # native-best 会选择最佳并精准释放另一会话。
+        #
+        run_native_best "both native radios active"
+        exit $?
+        ;;
+    
+    none)
+        #
+        # Native 完全掉线：
+        # native-best 会扫描最佳 radio、关联、DHCP、Portal login。
+        #
+        run_native_best "no native radio active"
+        exit $?
+        ;;
+    
+    radio0|radio2)
+        RADIO="$CURRENT"
+        DEV="$(radio_dev "$RADIO")"
+        ;;
+
+esac
+
+#
+
+# 正常在线期间只做非常低成本的 MCS / RSSI 维护。
+
+#
+maintain_rate "$RADIO" || exit $?
+
+#
+
+# 先判断公网。
+
+#
+if internet_confirm "$RADIO"; then
+
+    rm -f "$STATE_DIR/offline.$RADIO"
+
+else
+    #
+    # HTTPS 确认失败。
+    #
+    # 只有明确看到校园 Portal 重定向时才自动提交登录，
+    # 避免一次普通公网抖动误触发 Portal login。
+    #
+    if portal_required "$RADIO"; then
+
+        log "$RADIO Portal authentication required"
+    
+        if /usr/bin/campus-portal-login "$DEV" \
+            >/tmp/campus-portal-watchdog.log 2>&1
+        then
+            /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+            log "$RADIO Portal recovery successful"
+            rm -f "$STATE_DIR/offline.$RADIO"
+        else
+            PORTAL_RC=$?
+            log "$RADIO Portal recovery failed rc=$PORTAL_RC; see /tmp/campus-portal-watchdog.log"
+            exit "$PORTAL_RC"
+        fi
+    
+    else
+        #
+        # HTTPS 失败，但没有看到 Portal 重定向。
+        # 不盲目重新登录，不创建额外 Portal 会话。
+        #
+        FILE="$STATE_DIR/offline.$RADIO"
+    
+        COUNT="$(cat "$FILE" 2>/dev/null)"
+        [ -z "$COUNT" ] && COUNT=0
+    
+        COUNT=$((COUNT + 1))
+    
+        echo "$COUNT" > "$FILE"
+    
+        log "$RADIO Internet check failed but no Portal redirect (${COUNT})"
+    fi
+
+fi
+
+#
+
+# 信号连续三次 <= -70 dBm：
+
+# 才做完整双 radio survey。
+
+#
+mw_require_active || exit $?
+if weak_check "$RADIO"; then
+
+    reset_weak "$RADIO"
+    
+    run_native_best "weak signal persisted"
+        exit $?
+
+fi
+
+#
+
+# 正常情况下每 4 小时才完整扫一次。
+
+#
+if scan_due; then
+
+    if [ "${FORCE_SCAN:-0}" = '1' ]; then
+        REASON='forced scheduled scan'
+    else
+        REASON='4-hour scheduled scan'
+    fi
+    
+    run_native_best "$REASON"
+    
+    RC=$?
+    
+    exit "$RC"
+
+fi
+
+exit 0

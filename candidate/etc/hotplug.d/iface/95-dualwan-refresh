@@ -1,0 +1,11 @@
+#!/bin/sh
+. /usr/lib/scut-multiwan/common.sh || exit 1
+case "$INTERFACE" in wan1|wan2|usbwan) ;; *) exit 0;; esac
+case "$ACTION" in ifup|ifdown) ;; *) exit 0;; esac
+mw_require_active 40 || exit 0
+(
+    sleep 3
+    mw_require_active 35 || exit 0
+    /usr/bin/dualwan-refresh apply >/dev/null 2>&1
+) &
+exit 0

@@ -1,0 +1,13 @@
+etc/hotplug.d/iface/95-dualwan-refresh
+usr/bin/campus-portal-login.impl
+usr/bin/campus-portal-logout.impl
+usr/bin/campus-portal-runlocked
+usr/bin/campus-usb-login.impl
+usr/bin/campus-usb-logout.impl
+usr/bin/dualwan-refresh
+usr/bin/fix-qca-sta-rate
+usr/bin/native-best
+usr/bin/native-watchdog
+usr/bin/qca-radio-survey
+usr/bin/usb-watchdog
+usr/lib/scut-multiwan/common.sh

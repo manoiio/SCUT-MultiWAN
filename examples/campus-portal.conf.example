@@ -1,0 +1,5 @@
+# Copy to the router only; chmod 600 /etc/campus-portal.conf
+NATIVE_USER='replace-with-native-account'
+NATIVE_PASS='replace-with-native-password'
+USB_USER='replace-with-usb-account'
+USB_PASS='replace-with-usb-password'
