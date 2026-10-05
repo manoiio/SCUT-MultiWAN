@@ -1,0 +1,8 @@
+f9dceaf3797e022ca282503e6afd4c1c548d1c400798594506ab0b947c3cbdba  /usr/bin/scutclient-wired
+132a2e52b790f678e3a3ba867568f218938c0a978cdec18c186edf1e82e296cd  /usr/bin/scut-wired-gate
+32576e3ca1c17cd76386950970f9c80748c7cd0bee1f233a2d468310c35986b9  /usr/lib/scut-multiwan/wired-run
+6f8ef54a4a6155c87f123a5df3e8fef53ccac7d764f80cc860165b3bc19c7919  /etc/init.d/scut-wired
+1741be554d22d34ad768ffd9d98f014d91671021f99589e09da76161fece2185  /usr/bin/dualwan-refresh
+3da33466d921180608e907ebd6f9a138f34e29b7314189f0e433bbc1614b4ee4  /etc/hotplug.d/iface/95-dualwan-refresh
+c8da6de8e3edcf7ed8b1b2931a741f8a53cae24680021fc848cee064ae05aa3a  /etc/scut-wired.conf
+6bd7e605e6ce5e28a060ae37e6ddf9d20cee4f12f9b62ed53ec2282332edf0a7  /etc/config/network

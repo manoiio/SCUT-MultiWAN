@@ -22,6 +22,9 @@ for src in (root/'candidate').rglob('*'):
         mapping[key] = remote + ('/sys' if prefix=='/sys/class/net' else prefix)
         text = text.replace(prefix, key)
     for key,value in mapping.items(): text=text.replace(key,value)
+    if rel.as_posix() == 'usr/bin/dualwan-refresh':
+        # Only process-identity reads are redirected; inherited lock FDs stay real.
+        text = text.replace('/proc/$WIRED_PID/stat', remote+'/proc/$WIRED_PID/stat')
     dst.write_text(text)
     dst.chmod(0o755)
 # Public date fixtures; no downloaded HTML, network state or credentials.
@@ -41,6 +44,14 @@ case "$name" in
  date) case "$1" in '+%Y-%m-%d %u %H %M %S') echo "${TEST_DATE:-2026-10-08} ${TEST_WEEKDAY:-4} ${TEST_CLOCK:-20 00 00}";; '+%H %M %S') echo "${TEST_CLOCK:-20 00 00}";; +%s) echo "${TEST_EPOCH:-1791432000}";; -d) echo "$2";; *) echo 'test clock';; esac; exit 0;;
  sleep) [ "$1" -ge 20 ] && /bin/sleep 1; exit 0;;
  logger) exit 0;;
+ scutclient-wired)
+   read -r fixture_user; read -r fixture_pass
+   [ "$fixture_user" = test-user ] && [ "$fixture_pass" = test-password ] || exit 98
+   echo "$$" > "$TEST_ROOT/mock-engine.pid"
+   trap 'echo engine-stopped >> "$TEST_ROOT/trace"; exit 0' TERM INT
+   while :; do /bin/sleep 1; done;;
+ readlink)
+   case "$1" in /proc/999999/exe) echo "$TEST_ROOT/usr/bin/scutclient-wired";; *) busybox readlink "$@";; esac; exit $?;;
  timeout) shift; exec "$@";;
  native-best-fixture) echo "native-best-fixture" >> "$TEST_ROOT/trace"; exit "${TEST_BEST_RC:-0}";;
  uci) echo "uci $*" >> "$TEST_ROOT/trace"; exit 0;;
@@ -53,7 +64,7 @@ case "$name" in
    exit "${TEST_PING_FAIL:-0}";;
  ubus|ifstatus)
    [ "$name" = ubus ] && iface="${2##*.}" || iface="$1"
-   case "$iface" in wan1) dev=phy0-sta0; up=true;; wan2) dev=phy2-sta0; up=false; [ -f "$TEST_ROOT/radio2-enabled" ] && up=true;; usbwan) dev=phy3-sta0; up=true;; esac
+   case "$iface" in wan1) dev=phy0-sta0; up=true;; wan2) dev=phy2-sta0; up=false; [ -f "$TEST_ROOT/radio2-enabled" ] && up=true;; usbwan) dev=phy3-sta0; up=true;; wan) dev=wan; up=true;; esac
    printf '{\n"up": %s,\n"l3_device": "%s"\n}\n' "$up" "$dev"; exit 0;;
  iw)
    [ "$1" = phy ] && { echo "iw-create $*" >> "$TEST_ROOT/trace"; exit 0; }
@@ -74,8 +85,9 @@ case "$name" in
  ip)
    dev=; prev=
    for arg in "$@"; do [ "$prev" = dev ] && dev="$arg"; prev="$arg"; done
-   case "$dev" in phy0-sta0) ip=10.1.1.10; net=10.1.1.0/24; gw=10.1.1.1;; phy2-sta0) ip=10.3.3.30; net=10.3.3.0/24; gw=10.3.3.1;; phy3-sta0) ip=10.2.2.20; net=10.2.2.0/24; gw=10.2.2.1;; esac
+   case "$dev" in phy0-sta0) ip=10.1.1.10; net=10.1.1.0/24; gw=10.1.1.1;; phy2-sta0) ip=10.3.3.30; net=10.3.3.0/24; gw=10.3.3.1;; phy3-sta0) ip=10.2.2.20; net=10.2.2.0/24; gw=10.2.2.1;; wan) ip=10.4.4.40; net=10.4.4.0/24; gw=10.4.4.1;; esac
    case "$*" in
+    '-4 -o addr show dev wan') echo "4: wan inet ${TEST_WIRED_IP:-10.4.4.40}/24 scope global";;
     *'addr show'*) echo "1: $dev inet $ip/24 scope global";;
     *'route show dev '*'scope link'*) echo "$net dev $dev scope link";;
     *'route show dev '*) echo "default via $gw dev $dev";;
@@ -135,6 +147,7 @@ case "$name" in
         phy0-sta0) online="${TEST_NATIVE_ONLINE:-1}";;
         phy2-sta0) online="${TEST_CANDIDATE_ONLINE:-0}";;
         phy3-sta0) online="${TEST_USB_ONLINE:-1}";;
+        wan) online="${TEST_WIRED_ONLINE:-0}";;
       esac
       [ -f "$TEST_ROOT/$dev-offline" ] && online=0
       [ -f "$TEST_ROOT/$dev-login" ] && online="${TEST_AFTER_LOGIN_ONLINE:-1}"
@@ -147,8 +160,9 @@ exit 1
 '''
 (out/'bin/mock').write_text(mock)
 (out/'bin/mock').chmod(0o755)
-for name in ['date','sleep','logger','timeout','native-best-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
+for name in ['date','sleep','logger','readlink','scutclient-wired','timeout','native-best-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
     (out/'bin'/name).symlink_to('mock')
+(out/'usr/bin/scutclient-wired').symlink_to('../../bin/mock')
 runner=r'''#!/bin/sh
 set -u
 TEST_ROOT=/tmp/scut-multiwan-tests
@@ -159,6 +173,8 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
+ unset TEST_WIRED_ONLINE TEST_WIRED_IP
+ rm -f "$TEST_ROOT/etc/scut-wired.conf" "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
  unset TEST_CONNECTED TEST_DATE TEST_WEEKDAY TEST_EPOCH TEST_PRIMARY_FAIL TEST_CAL_FETCH_FAIL TEST_CAL_DOWNLOAD_FAIL TEST_CAL_BAD_NOTICE TEST_CLOCK TEST_REDIRECT TEST_HTTPS_CODE TEST_ACTIVE TEST_BEST_RC TEST_NATIVE_ONLINE TEST_USB_ONLINE TEST_CANDIDATE_ONLINE TEST_AFTER_LOGIN_ONLINE TEST_FAIL_LOGOUT_IP TEST_LOGIN_TIMEOUT TEST_ROUTE_FAIL TEST_PING_FAIL TEST_TX TEST_RX TEST_FAILED TEST_RATE_FAIL TEST_VERIFY_PING_FAIL TEST_ROLLBACK_RATE_FAIL TEST_SCAN_EMPTY
  : > "$TEST_ROOT/trace"
  rm -f "$TEST_ROOT/ping-count"
@@ -341,7 +357,7 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

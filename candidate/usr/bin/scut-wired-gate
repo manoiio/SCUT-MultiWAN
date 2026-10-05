@@ -1,0 +1,79 @@
+#!/bin/sh
+# Called with the real Portal lock inherited on FD 9 by the protocol engine.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+[ -f /etc/scut-wired.conf ] || exit 75
+. /etc/scut-wired.conf
+[ "$(readlink /proc/self/fd/9 2>/dev/null)" = /tmp/scut-multiwan-locks/portal ] && flock -n 9 || exit 75
+STATE=/etc/scut-multiwan/wired.session
+write_state() {
+    (umask 077; printf '%s wan\n' "$1" > "$STATE.$$") && mv "$STATE.$$" "$STATE"
+}
+check_state() {
+    read -r stored dev extra < "$STATE" || return 75
+    [ "$dev" = wan ] && [ -z "$extra" ] || return 75
+    [ "$stored" = none ] || [ "$stored" = "$WIRED_IP" ] || return 75
+}
+claim() {
+    mw_clock || return 76
+    now="$(date +%s)" || return 75
+    case "$now" in ''|*[!0-9]*) return 75;; esac
+    # A durable cooldown also bounds daytime respawn on rejected credentials.
+    budget=/etc/scut-multiwan/wired.night-budget
+    read -r stamp count last block extra < "$budget" || return 75
+    case "$stamp" in none|20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) return 75;; esac
+    case "$count:$last:$block" in *[!0-9:]*) return 75;; esac
+    [ -n "$count" ] && [ -n "$last" ] && [ -n "$block" ] && [ -z "$extra" ] || return 75
+    [ "$count" -le 2 ] && [ "$block" -le 1 ] || return 75
+    if [ "$stamp" != "$MW_DATE" ]; then
+        [ "$stamp" = none ] || [ "$stamp" \< "$MW_DATE" ] || return 75
+        count=0; last=0; block=0
+    fi
+    [ "$last" -eq 0 ] || [ $((now-last)) -ge 120 ] || return 76
+    if mw_night_window; then
+        [ "$block" -eq 0 ] && [ "$count" -lt 2 ] || return 76
+        [ "$last" -eq 0 ] || [ $((now-last)) -ge 900 ] || return 76
+        count=$((count+1))
+    fi
+    (umask 077; printf '%s %s %s %s\n' "$MW_DATE" "$count" "$now" "$block" > "$budget.$$") && mv "$budget.$$" "$budget" || return 75
+}
+case "$1" in
+    prepare)
+        mw_require_active 60 || exit $?
+        [ "$WIRED_ENABLE" = 1 ] && [ "$(cat /sys/class/net/wan/carrier 2>/dev/null)" = 1 ] || exit 75
+        actual="$(ip -4 -o addr show dev wan | awk '{print $4; exit}')"
+        [ "$actual" = "$WIRED_IP/24" ] || exit 75
+        check_state || exit $?
+        claim || exit $?
+        ;;
+    needs-release) check_state || exit $?; [ "$stored" != none ]; exit $?;;
+    journal) mw_require_active 45 || exit $?; write_state "$WIRED_IP" || exit 75;;
+    challenge)
+        # Response within a live, journalled session; no Start/new login/retry.
+        mw_require_active 60 || exit $?
+        check_state || exit $?
+        [ "$stored" = "$WIRED_IP" ] || exit 75
+        ;;
+    ready)
+        case "${2:-}" in ''|*[!0-9]*) exit 75;; esac
+        check_state || exit $?
+        [ "$stored" = "$WIRED_IP" ] || exit 75
+        started="$(awk '{print $22}' "/proc/$2/stat" 2>/dev/null)"
+        [ -n "$started" ] || exit 75
+        printf '%s %s\n' "$2" "$started" > /tmp/scut-wired-ready.$$
+        mv /tmp/scut-wired-ready.$$ /tmp/scut-wired-ready
+        ;;
+    cleanup) mw_require_active 5 || exit $?;;
+    released) write_state none || exit 75; rm -f /tmp/scut-wired-ready;;
+    uncertain)
+        rm -f /tmp/scut-wired-ready
+        if mw_night_window; then
+            budget=/etc/scut-multiwan/wired.night-budget
+            read -r stamp count last block extra < "$budget" || exit 75
+            [ "$stamp" = "$MW_DATE" ] && [ -z "$extra" ] || exit 75
+            case "$count:$last" in *[!0-9:]*) exit 75;; esac
+            (umask 077; printf '%s %s %s 1\n' "$stamp" "$count" "$last" > "$budget.$$") && mv "$budget.$$" "$budget" || exit 75
+        fi
+        ;;
+    *) exit 2;;
+esac
+exit 0

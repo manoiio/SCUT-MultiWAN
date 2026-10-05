@@ -1,6 +1,6 @@
 # SCUT-MultiWAN
 
-华南理工校园网 OpenWrt 双无线 WAN 维护脚本：一条原生 Qualcomm 无线链路，加一条 USB MT7921AU 无线链路，通过 ECMP 分担 LAN 连接。
+华南理工校园网 OpenWrt 双无线与有线 WAN 维护：原生 Qualcomm 无线、USB MT7921AU 无线及校园有线，通过 ECMP 分担 LAN 连接。
 
 已在 Linksys MX4200 V1、OpenWrt 25.12.5、Linux 6.12.94、BusyBox ash 上部署验证。脚本依赖该设备现有的无线、网络及防火墙配置，不是通用一键安装包。
 
@@ -10,7 +10,7 @@
 - 原生 ath11k 速率维护只作用于 phy0/phy2，限制 MCS7/MCS9；新关联前 15 秒暂不依据 RX 降档/升档，仍处理真实网关丢包和 TX failure；USB 保留正常速率控制。
 - Portal 登录/注销通过全局文件锁串行化。持久会话记录保留超时后的不确定状态，未确认释放旧会话时不继续登录。
 - 仅明确重定向到校园 Portal 时才自动认证；普通公网超时不会触发盲目登录。
-- 路由表 103、优先级 103，规则为 `iif br-lan lookup 103`。双路健康时权重 1:1；单路故障时切换至健康链路。
+- 路由表 103、优先级 103，规则为 `iif br-lan lookup 103`。三路健康时权重 1:1:1；故障链路移出，双无线健康时保留 1:1。
 - 普通工作日及官方补班周末在 GMT+8 的 00:06–07:00 静默；普通休息周末和官方放假日采用午夜保护及有限恢复。未知年度默认静默。
 - 夜间不做完整扫描、Native 优化切换或无线重启；每天 07:00 强制 Native 检查，USB/ECMP 分别在 07:01/07:02 错峰执行。
 - 每月 1 日 12:13 从中国政府网更新当年与次年清单；下载或校验失败保留旧清单。
@@ -23,8 +23,9 @@ ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 | --- | --- |
 | `candidate/` | 维护脚本及热插拔钩子，目录结构对应路由器根目录 |
 | `tests/build_router_tests.py` | 生成隔离的 BusyBox ash 回归测试 |
-| `deployment/` | 历史稳定性修复及 `holiday-20261005/` 夜间策略部署/回滚记录 |
+| `deployment/` | 历史稳定性、`holiday-20261005/` 夜间策略及 `wired-20261006/` 有线部署/回滚记录 |
 | `examples/campus-portal.conf.example` | 不含真实账号密码的配置示例 |
+| `THIRD_PARTY_NOTICES.md`、`LICENSES/` | 第三方来源、复用范围及许可证 |
 | `OPERATIONS.txt` | 本次修复与验证记录 |
 
 `candidate/usr/bin` 包含四个 Portal 入口包装脚本；它们在原路由器上已存在，所以没有列入本次 13 个替换文件清单。
@@ -45,7 +46,7 @@ ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 python3 tests/build_router_tests.py
 ```
 
-当前夜间策略在 2026-10-05 23:20（GMT+8）部署，81 组隔离 mock 回归通过。定时表参考见 `examples/crontab.quiet-window.example`。真实午夜恢复及 07:00 晨间行为仍需观察。
+夜间策略在 2026-10-05 23:20（GMT+8）部署；2026-10-06 有线扩展已核对原有 81 组与 19 组有线隔离检查，另通过 14 项无真实网络操作的协议回归。定时表参考见 `examples/crontab.quiet-window.example`。真实午夜恢复及 07:00 晨间行为仍需观察。
 
 随后将 `tests/router-suite.tar` 复制到目标 OpenWrt 的 `/tmp`，在确认 `/tmp/scut-multiwan-tests-holidays-20261005` 没有其他用途后执行：
 
@@ -55,7 +56,7 @@ tar -xf /tmp/router-suite.tar -C /tmp/scut-multiwan-tests-holidays-20261005
 sh /tmp/scut-multiwan-tests-holidays-20261005/run.sh
 ```
 
-测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。2026-10-05 在目标路由器实际 BusyBox ash 上通过 81 组回归；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
+测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 100 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
 
 ## 部署与回滚
 
@@ -64,6 +65,29 @@ sh /tmp/scut-multiwan-tests-holidays-20261005/run.sh
 新部署须先备份目标设备、调整设备映射及部署路径，并重新生成校验清单。替换前在 `/tmp` 检查非空文件、shell 语法和关键逻辑，再复制到目标文件系统的同级临时文件，通过重命名替换；保留可执行的回滚入口。
 
 本仓库不包含原始备份、真实网络配置、认证配置、会话记录或 SSH 密码。原路由器上的回滚路径见 `OPERATIONS.txt`。
+
+## 有线 WAN 扩展
+
+有线使用物理 `wan`（Internet 口），按网络中心分配的信息设置静态 IPv4、网关和 DNS。用户确认账号允许两个无线会话和一个有线会话同时在线；有线已选择沿用 Native 凭据，凭据仍只留在路由器 `/etc/campus-portal.conf`。不需要学校的桌面客户端。
+
+`tools/build_wired_client.py` 与 `tools/wired-main.c` 对开源 [scutclient](https://github.com/scutclient/scutclient) v3.1.3 做可复现的源码适配，并将适配后的上游协议实现编译进 ARM64 Linux/musl 静态程序。构建器先核对 `tools/scutclient-v3.1.3.sha256` 中的上游文件哈希，再修改 `auth.c` 并与本项目适配器一起编译。上游代码采用 AGPL-3.0；来源、改动范围及许可证副本见 [第三方来源说明](THIRD_PARTY_NOTICES.md) 和 `LICENSES/scutclient-AGPL-3.0.txt`。使用 Zig 0.15.2 交叉编译，在路由器上执行，不需要把编译器或桌面运行环境装到路由器。生成源码、二进制和含实际网络参数的部署包放在被忽略的 `work/` 或 `/private/tmp`。
+
+```sh
+python3 tools/build_wired_client.py \
+  --source /path/to/fresh/scutclient-3.1.3 \
+  --zig /path/to/zig \
+  --output work/scutclient-wired
+```
+
+生产服务为 `/etc/init.d/scut-wired`，配置格式见 `examples/scut-wired.conf.example`。认证程序从标准输入读凭据，不在 argv 中传密码，不输出原始认证报文/服务器文本。首次登录、确认注销和已建立会话的服务器挑战均使用真实全局 Portal 锁；每次启动只尝试一次，重连由 procd 和持久守卫控制。会话内挑战不发送新的 EAPOL Start，不当作断线后的新登录。
+
+有线夜间同样遵守现有日历和 00:06–00:25 保护；允许夜间最多两次启动认证、间隔至少 900 秒，注销不确定时停止当夜继续尝试。已有连接继续保活，普通工作日不启动认证；07:00 后不受夜间额度阻断。记录在 `/etc/scut-multiwan/wired.session` 和 `wired.night-budget`，不得删除这些记录绕过保护。
+
+`dualwan-refresh` 可管理 Native、USB 和有线三条链路：有线须有已完成 UDP 心跳的有效进程身份、绑定接口的 HTTPS 200 和可用网关，才加入表 103。保留 `iif br-lan` 和连接哈希策略；三路健康时权重 1:1:1，两路无线独立保持 1:1；故障链路移除，全失败移除策略。认证退出触发健康路由刷新，热插拔及原有定时刷新仍保留。
+
+`tests/wired-cases.sh` 验证路由、额度、锁及会话记录；`tests/wired-protocol.c` 对服务器挑战、重复成功报文和报文长度做无真实网络操作的协议回归。mock 和协议测试都不代表长期有线认证已通过，真实接入结果以 `OPERATIONS.txt` 最新记录为准。
+
+`deployment/wired-20261006/` 绑定本次基线与专用备份，不是通用安装器，不得重复安装。回滚会先确认释放已有有线会话，释放不确定时拒绝删除记录或继续回滚。不会通过 Wi-Fi Portal 的 IP unbind 接口注销有线会话。
 
 ## 节假日与周末夜间联网
 

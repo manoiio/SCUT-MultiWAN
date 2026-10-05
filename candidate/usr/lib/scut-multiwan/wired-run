@@ -1,0 +1,25 @@
+#!/bin/sh
+umask 077
+. /usr/lib/scut-multiwan/common.sh || exit 1
+[ -f /etc/scut-wired.conf ] || exit 75
+. /etc/scut-wired.conf
+[ "$WIRED_ENABLE" = 1 ] || exit 75
+mw_require_active 60 || exit $?
+mkdir -p /tmp/scut-multiwan-locks || exit 1
+chmod 700 /tmp/scut-multiwan-locks || exit 1
+# Credentials stay only on the router and are never passed in argv.
+. /etc/campus-portal.conf
+printf '%s\n%s\n' "$NATIVE_USER" "$NATIVE_PASS" |
+    /usr/bin/scutclient-wired wan "$WIRED_SERVER" "$WIRED_DNS" MX4200 &
+engine=$!
+# procd supervises this shell: forward stop to its protocol child as well.
+stop_engine() {
+    kill -TERM "$engine" 2>/dev/null || true
+    wait "$engine" 2>/dev/null || true
+    /usr/bin/dualwan-refresh apply >/dev/null 2>&1 || true
+    exit 0
+}
+trap stop_engine TERM INT
+wait "$engine"
+rc=$?
+exit "$rc"

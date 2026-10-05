@@ -1,6 +1,6 @@
 #!/bin/sh
 . /usr/lib/scut-multiwan/common.sh || exit 1
-case "$INTERFACE" in wan1|wan2|usbwan) ;; *) exit 0;; esac
+case "$INTERFACE" in wan1|wan2|usbwan|wan) ;; *) exit 0;; esac
 case "$ACTION" in ifup|ifdown) ;; *) exit 0;; esac
 mw_require_route 40 || exit 0
 (

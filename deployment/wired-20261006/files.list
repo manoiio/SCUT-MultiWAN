@@ -1,0 +1,8 @@
+/usr/bin/scutclient-wired
+/usr/bin/scut-wired-gate
+/usr/lib/scut-multiwan/wired-run
+/etc/init.d/scut-wired
+/usr/bin/dualwan-refresh
+/etc/hotplug.d/iface/95-dualwan-refresh
+/etc/scut-wired.conf
+/etc/config/network
