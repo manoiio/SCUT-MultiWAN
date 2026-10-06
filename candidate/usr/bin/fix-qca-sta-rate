@@ -12,7 +12,7 @@ STATE_FILE="$STATE_DIR/$DEV.state"
 is_uint() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
 set_rate() {
     mw_require_scan 5 || return $?
-    iw dev "$DEV" set bitrates legacy-5 6 ht-mcs-5 0 vht-mcs-5 he-mcs-5 2:"$1"
+    iw dev "$DEV" set bitrates legacy-5 6 9 12 18 24 36 48 54 ht-mcs-5 0 vht-mcs-5 he-mcs-5 2:"$1"
 }
 link_key() {
     iw dev "$DEV" link 2>/dev/null |
@@ -37,6 +37,22 @@ read -r AGE CURRENT_TX RX CURRENT_PACKETS CURRENT_FAILED RP ASSOC SIGNAL <<EOF
 $(metrics)
 EOF
 NOW="$(mw_uptime)"
+# Legacy-only association cannot satisfy a HE fixed-rate request. Widen its
+# fallback once per association, keep the HE cap for the next association,
+# and leave recovery to the guarded link helper. Do not invent HE samples.
+if iw dev "$DEV" info 2>/dev/null | grep -q 'width:.*(no HT)'; then
+    LEGACY_KEY="$LINK_KEY/$ASSOC"
+    if [ "$(cat "$STATE_DIR/$DEV.legacy" 2>/dev/null)" != "$LEGACY_KEY" ]; then
+        CAP="$(sed -n '2p' "$STATE_FILE" 2>/dev/null)"
+        case "$CAP" in 7|9) ;; *) CAP=7;; esac
+        set_rate "$CAP" || exit $?
+        printf '%s\n' "$LEGACY_KEY" > "$STATE_DIR/$DEV.legacy.tmp.$$" &&
+            mv "$STATE_DIR/$DEV.legacy.tmp.$$" "$STATE_DIR/$DEV.legacy" || exit 1
+        logger -t qca-fixed-rate "$DEV legacy-only association; fallback rates allowed, HE cap MCS$CAP retained; recovery deferred to link watchdog"
+    fi
+    exit 0
+fi
+rm -f "$STATE_DIR/$DEV.legacy"
 read -r LAST_LINK LAST_TARGET PREV_PACKETS PREV_FAILED GOOD_SINCE LAST_CHECK LAST_ASSOC LOW_COUNT COOLDOWN <<EOF
 $(awk '{printf "%s ", $0}' "$STATE_FILE" 2>/dev/null)
 EOF

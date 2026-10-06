@@ -1,0 +1,143 @@
+#!/bin/sh
+# Daytime legacy-association recovery only; never Portal login/logout or DHCP.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+DEV="$1"
+case "$DEV" in
+    phy0-sta0|phy2-sta0) SLOT=native; OP=native-watchdog;;
+    phy3-sta0) SLOT=usb; OP=usb-watchdog;;
+    *) exit 2;;
+esac
+mw_require_scan 30 || exit $?
+(umask 077; mkdir -p /tmp/scut-multiwan-locks) || exit 1
+# Reuse a caller's real operation lock; otherwise acquire it nonblocking.
+if [ "$(readlink /proc/self/fd/8 2>/dev/null)" = "/tmp/scut-multiwan-locks/$OP" ]; then
+    exec 5<&8
+else
+    exec 5>>"/tmp/scut-multiwan-locks/$OP" || exit 1
+fi
+flock -n 5 || exit 75
+mw_lock "link-recover-$SLOT" 8 || exit $?
+# Hold across association confirmation AND final health checks, even after FD9 closes.
+exec 4>>/tmp/scut-multiwan-locks/link-recover-global || exit 1
+flock -n 4 || exit 75
+if [ "$SLOT" = native ]; then
+    exec 6>>/tmp/scut-multiwan-locks/native-best || exit 1
+    flock -n 6 || exit 75
+    mw_lock "qca-$DEV" 7 || exit $?
+fi
+DIR=/tmp/scut-link-recover
+mkdir -p "$DIR" || exit 1
+FILE="$DIR/$SLOT"
+uint() { case "$1" in ''|*[!0-9]*) return 1;; *) return 0;; esac; }
+key() {
+    iw dev "$DEV" station dump 2>/dev/null | awk '
+        $1=="Station" {b=$2}
+        $1=="associated"&&$2=="at"&&$3=="[boottime]:" {a=$4}
+        $1=="connected"&&$2=="time:" {age=$3}
+        END {if(b!=""&&a!=""&&age~/^[0-9]+$/)print b "/" a,age,b}'
+}
+legacy() {
+    iw dev "$DEV" link 2>/dev/null | grep -q '^Connected to ' &&
+        iw dev "$DEV" info 2>/dev/null | grep -q 'width:.*(no HT)'
+}
+high() {
+    iw dev "$DEV" link 2>/dev/null | grep -q '^Connected to ' || return 1
+    INFO="$(iw dev "$DEV" info 2>/dev/null)" || return 1
+    printf '%s\n' "$INFO" | grep -q 'width:' &&
+        ! printf '%s\n' "$INFO" | grep -q '(no HT)'
+}
+address() {
+    ip -4 -o addr show dev "$DEV" | awk '$3=="inet" {split($4,a,"/"); print a[1]; exit}'
+}
+read -r VERSION ATTEMPT FAILURES RETRY HEALTHY <<EOF
+$(cat "$FILE" 2>/dev/null)
+EOF
+NOW="$(mw_uptime)"
+if [ "$VERSION" = v2 ]; then
+    for v in "$ATTEMPT" "$FAILURES" "$RETRY" "$HEALTHY"; do uint "$v" || exit 75; done
+    [ "$FAILURES" -le 3 ] && [ "$ATTEMPT" -le "$NOW" ] &&
+        [ "$HEALTHY" -le "$NOW" ] && [ "$RETRY" -le $((NOW+900)) ] || exit 75
+else
+    # Upgrade the previous four-field RAM state without clearing an attempt.
+    ATTEMPT="${RETRY:-0}"
+    uint "$ATTEMPT" && [ "$ATTEMPT" -le "$NOW" ] || ATTEMPT=0
+    FAILURES=0; RETRY=0; HEALTHY=0
+    [ "$ATTEMPT" = 0 ] || RETRY=$((ATTEMPT+60))
+fi
+save() {
+    printf 'v2 %s %s %s %s\n' "$ATTEMPT" "$FAILURES" "$RETRY" "$HEALTHY" > "$FILE.tmp.$$" &&
+        mv "$FILE.tmp.$$" "$FILE"
+}
+if ! legacy; then
+    if high; then
+        [ "$HEALTHY" != 0 ] || HEALTHY="$NOW"
+        [ $((NOW-HEALTHY)) -lt 30 ] || FAILURES=0
+    else HEALTHY=0; fi
+    save; exit $?
+fi
+HEALTHY=0
+[ "$NOW" -ge "$RETRY" ] || exit 75
+read -r KEY AGE BSSID <<EOF
+$(key)
+EOF
+[ -n "$KEY" ] && uint "$AGE" && [ "$AGE" -ge 30 ] || exit 0
+# Read existing BSS cache only. A genuinely legacy AP must not be restarted
+# forever, and stale/unrelated advertisements are not recovery evidence.
+iw dev "$DEV" scan dump 2>/dev/null | awk -v b="$BSSID" '
+    /^BSS / {p=($2 ~ ("^" b "\\(")); fresh=0}
+    p&&/last seen: [0-9]+ ms ago/ {if($3<=30000)fresh=1}
+    p&&/HT capabilities:|HE capabilities:/ {if(fresh)ok=1}
+    END {exit !ok}' || exit 0
+# Legacy mode plus current AP capabilities is enough; no preflight HTTPS gate.
+IP="$(address)"
+mw_ipv4 "$IP" || exit 1
+mw_portal_lock 5 || exit $?
+mw_require_scan 15 || exit $?
+mw_session_read "$SLOT" && [ "$MW_SESSION_IP" = "$IP" ] &&
+    [ "$MW_SESSION_DEV" = "$DEV" ] || exit 75
+legacy || exit 0
+read -r CHECK AGE BSSID <<EOF
+$(key)
+EOF
+[ "$CHECK" = "$KEY" ] || exit 75
+# Record BEFORE the asynchronous request, including unknown delivery outcomes.
+ATTEMPT="$NOW"
+[ "$FAILURES" -ge 3 ] || FAILURES=$((FAILURES+1))
+case "$FAILURES" in 1) DELAY=60;; 2) DELAY=300;; *) DELAY=900;; esac
+RETRY=$((NOW+DELAY))
+save || exit 1
+RESULT="$(mw_run_bounded 2 ubus call "wpa_supplicant.$DEV" control '{"command":"REASSOCIATE"}' 2>/dev/null)"; RC=$?
+if [ "$RC" != 0 ] || [ "$(printf '%s' "$RESULT" | jsonfilter -e '@.result' 2>/dev/null)" != OK ]; then
+    logger -t scut-link-recover "$DEV reassociation request uncertain/rejected; backoff retained"
+    exit 1
+fi
+# Bound Portal-lock ownership below the wired challenge's 15s wait budget.
+I=0; READY=0
+while [ "$I" -lt 8 ]; do
+    sleep 1
+    read -r CHECK AGE BSSID <<EOF
+$(key)
+EOF
+    if [ -n "$CHECK" ] && [ "$CHECK" != "$KEY" ] && high; then READY=1; break; fi
+    I=$((I+1))
+done
+exec 9>&-
+[ "$IP" = "$(address)" ] || {
+    logger -t scut-link-recover "$DEV address changed; defer to session-aware watchdog"
+    exit 1
+}
+if [ "$READY" = 1 ]; then
+    HEALTHY="$(mw_uptime)"
+    RETRY=$((ATTEMPT+60))
+    save || exit 1
+    if mw_online "$DEV" 6; then
+        logger -t scut-link-recover "$DEV high-throughput association and public HTTPS restored without Portal login"
+    else
+        logger -t scut-link-recover "$DEV high-throughput association restored; public HTTPS offline, no authentication attempted"
+    fi
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1 || true
+    exit 0
+fi
+logger -t scut-link-recover "$DEV reassociation did not verify recovery; backoff retained"
+/usr/bin/dualwan-refresh force >/dev/null 2>&1 || true
+exit 1

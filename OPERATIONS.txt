@@ -965,3 +965,198 @@ and removed both temporary INPUT rules. Rechecked no53 listener and original
 INPUT chain. Router temporary probe and go marker removed. Backups retained;
 local test helpers remain in/private/tmp. No production script changes,
 commits, pushes or persistent proxy/firewall/configuration changes.
+Wireless legacy-mode read-only diagnosis — 2026-10-06 12:45–12:47 GMT+8
+
+User reports LuCI Native RX48/TX6 Mbps and USB RX/TX54 Mbps. Clean
+main/origin/main observed before this local record. Read-only SSH confirms
+both STA interfaces on BSSID5c:c0:a0:33:b3:20, channel36/5180MHz, width20MHz
+(no HT), Native signal about-39dBm and USB about-37dBm. Rates remain legacy
+48/6 and54/54 across samples; association ages about32723/32719 seconds.
+These are PHY reports, not measured application throughput.
+
+Six interface-bound HTTPS HEAD probes (Bilibili/JD across three WANs) returned
+200, about68–234ms. Five gateway pings each yielded zero loss; average
+Native/USB/wired3.111/2.054/1.037ms. Table103 and pref103 retain iif br-lan
+and weights1:1:1; existing wired PID18410 still records complete heartbeats
+and admitted same-session challenges. No current loss of authentication or
+missing default route observed. MemAvailable about124MiB, loadavg .57/.21/.07.
+
+Read cached BSS data with iw scan dump ONLY, no active scan: current AP
+advertises HT/VHT/HE and40MHz operation. Both generated supplicant configs
+show no explicit disable_ht/vht/he directive in selected fields. UCI radio0
+htmodeVHT40, radio3HE40; radio2/wifinet4 disabled, wireless pending changes0.
+This does not establish the original cause of legacy-only association.
+
+Available ring log begins relevant evidence at10:47: ath11k repeats every
+minute 'could not update fixed rate settings to all peers due to mcs/nss
+incompatibility'. Native watchdog sometimes exits rate refresh rc75; at11:05
+scheduled native-best completed 'Keep radio0: already best'. Logs do not
+retain enough history to date the onset or prove AP/driver responsibility.
+Installed fix-qca-sta-rate/scut-rate-watchdog hashes match local candidates.
+QCA state target9 is intended configuration, not achieved HE-MCS9. Source
+sets legacy-5 to6 while restricting HE to two-stream MCS7/9; when association
+is legacy-only, that mask is a concrete contributor to Native TX6 fallback.
+USB also legacy-only despite being outside QCA maintenance, so that mask
+alone does not explain both links losing HT/HE. RSSI-based candidate selection
+can retain a strong but degraded association; HTTPS health retains it in ECMP.
+
+No production changes, authentication/logout, service control, reassociation,
+active wireless scan, rate-setting command or throughput test performed.
+Only this local operations record added; no mock rerun, commit or push.
+Controlled reassociation of one wireless link with healthy WANs preserved
+would be a possible next diagnostic action requiring separate authorization.
+
+
+Wireless legacy-association recovery and deployment — 2026-10-06 GMT+8
+
+User explicitly requested resolving the diagnosed problem. Preserved previous
+local diagnosis record and main/origin/main; no commit or push requested.
+Confirmed both legacy associations, three HTTPS-online WANs and the same AP.
+
+Before the first production action, made router-only backup
+/root/scut-multiwan-legacy-backup-20261006 (700), including wireless/network
+copies and checksums for those files and three session records. Staged the
+Native helper with nonempty/1032-byte/hash/actual BusyBox syntax checks. Held
+native-watchdog/native-best/qca-phy0-sta0 and real Portal locks; only submitted
+supplicant REASSOCIATE, no login/logout, DHCP or UCI action. At12:49:57 Native
+rejoined the SAME AP in40MHz HE mode; TX9/RX11 confirmed after real HTTPS.
+The one-shot script's final refresh returned75; separate subsequent refresh
+returned0 and table103 retained all three next hops. No recovery was retried.
+
+Staged505-byte USB helper, syntax checked, verified healthy Native/wired,
+held USB watchdog and Portal locks, then requested one REASSOCIATE. Its first
+asynchronous samples briefly showed the old54Mbps association, then no valid
+rate; follow-up at12:51:45 confirmed new association completed12:51:19,
+40MHz HE-MCS11 TX/RX, HTTPS200. No blind repeat, wireless restart, MAC/BSSID
+pinning, UCI commit, DHCP restart, Portal login/logout or ledger replacement.
+Configuration and all three session checksums matched the pre-action backup.
+
+Implemented scut-link-recover with confirmed legacy-mode detection, fresh
+current-AP HT/HE cache evidence (iw scan dump only),30-second association
+grace, two observations >=30s apart,30-minute per-slot attempt cooldown, exact
+session/IP/device prerequisite and healthy alternative WAN. Uses actual
+watchdog/Native-switch/QCA/Portal locks and rechecks guard/association before
+request. Request bounded2s, association confirmation at most8 one-second
+rounds, then closes its Portal FD before final public HTTPS probe. No helper
+authentication or session writes. Request uncertainty/failure and temporary
+normal state retain cooldown. IP change defers to session-aware watchdog.
+Working/make-up quiet policy and ALL-date overnight radio-recovery prohibition
+remain. USB accepts radio0 or radio2 as Native backup, never QCA-tuned.
+
+QCA fallback now permits legacy6/9/12/18/24/36/48/54 instead of6 alone, retaining
+HE double-stream MCS7/MCS9 cap. In a confirmed no-HT association, applies
+fallback once per association without fake HE sampling/promotion or repeated
+incompatible fixed-rate updates. Native minute/normal and USB watchdogs call
+the new helper; healthy associations are not reconnected.
+
+Actual BusyBox ash full regression initially passed156 groups before a new
+lock-contention fixture failed: shell tail-exec removed its supposed parent
+holder. Fixed the fixture to keep the parent alive;159 complete groups then
+passed. Added radio2 backup and independent Portal-lock contention cases;
+FINAL161 groups passed on exact final sources in
+/tmp/scut-multiwan-tests-legacy-20261006-c. All test network/radio/auth/routes
+were mocked. Synthetic bounded-command watcher sleeps are explicit fixtures.
+
+13:05:11 deployed FIVE text targets (four replacements plus new helper), via
+verified staging/nonempty sizes8156/8455/3647/636/4751, hashes, BusyBox syntax,
+same-filesystem temporary copies and atomic rename. Code installer holds all
+affected operation/QCA/Portal locks and deployment guard; restores baseline
+on ordinary failure/signals. Code-specific backup
+/root/scut-multiwan-legacy-code-backup-20261006 (700); rollback syntax and
+four original checksums verified. No service/cron/credential configuration
+changes or authentication requests in code installation.
+
+Manual code-only rollback:
+sh /root/scut-multiwan-legacy-code-backup-20261006/rollback.sh
+Restores these four prior scripts/removes helper, keeps healthy associations,
+configuration and persistent session/quotas. Do not use earlier broad rollback
+or replay this baseline-bound installer. Real rollback was not performed.
+
+13:05:31+ acceptance: both installed healthy-link helper calls rc0, actual
+minute maintenance rc0; six bound Bilibili/JD probes200, about74–133ms.
+Native TX458.8/RX573.5 Mbps (HE9/11), USB573.5/573.5 (HE11/11), both40MHz;
+connected times939/857s show installation did not restart them. Table103,
+pref103 iif br-lan and1:1:1 retained; hash policy1 and all relevant rp_filter0.
+Five gateway probes each zero loss, avg Native/USB/wired2.947/2.158/1.083ms.
+Existing wired PID18410 continued admitted challenges and complete heartbeats
+through13:07:51. Cron minute tasks13:06/13:07/13:08 and new RAM state timestamp
+updates confirm normal scheduled execution without another reassociation.
+Last incompatibility log remains12:49, none observed after recovery.
+
+Production five hashes match final manifest. Preserved wireless/network/
+firewall/system/DHCP/campus-auth/wired config, cron, three sessions and three
+night-budget checksums ALL pass. No credential/config content downloaded.
+Mac en0 is192.168.1.234/24,1Gbps physical LAN. Initial proxy-bypassed HEAD used
+local DNS198.18.0.109 and timed out; default route points to utun4. Using the
+router-verified public IPv4 solely via temporary curl --resolve, with TLS
+hostname validation, --interface en0 and --noproxy, returned200 in78ms.
+No Mac DNS/proxy/TUN changes. This tests LAN direct reachability, not proxy
+performance or application throughput.
+
+Original trigger of both legacy associations remains unknown. Recovery method
+was verified twice live; final helper's faulty-association/failure branches
+are mock-tested, not induced again on healthy production. Natural recurrence,
+overnight and long-term/high-load stability remain unobserved. Documentation:
+docs/legacy-association-recovery-20261006.md and dedicated deployment README.
+Local modified/untracked code, tests and records remain uncommitted/unpushed.
+
+
+Daytime reassociation policy relaxation — 2026-10-06 GMT+8
+
+User explicitly instructed implementing the proposed relaxation. Read README,
+operations and Git status; retained existing dirty sources/docs. Read-only
+13:14 check confirmed installed initial baseline hashes, HE9/11 Native,
+HE11/11 USB and table103 three next hops. No healthy link disrupted.
+
+Removed target/public and healthy-backup requirements, and the cross-round
+30-second confirmation wait. A mature30s no-HT association with current fresh
+HT/HE AP cache evidence repairs on the first eligible check, including fully
+offline WANs. Pre-request identity/time/session-IP-device checks and actual
+Portal/watchdog/QCA/switch locks remain. New global recovery lock is retained
+through final health checks after Portal FD closes, preventing Native/USB
+concurrent reassociation. USB now participates in minute maintenance.
+
+Recorded retry deadlines before requests: failure1=60s,2=300s,3+=900s, counter
+capped3. Confirmed HT recovery returns to60s guard; stable observed HT >=30s
+resets failure count. Public HTTPS failure after HT recovery does not make
+helper authenticate. v2 RAM state preserves old attempt timestamp during
+migration; persistent sessions/night budgets never cleared or fabricated.
+Night policy and no Portal login/logout, DHCP/service restart/full scan in
+helper remain. QCA MCS7/9 and phy3 exclusion unchanged.
+
+Previous139 groups passed in real BusyBox ash. First revised backoff fixture
+failed after161 groups because run_rc overwrote the loop's expected variable;
+fixed fixture name, not production backoff. Final exact-source28 recovery
+cases plus3 silent-window repetitions ALL31 passed in isolated
+/tmp/scut-multiwan-tests-relaxed-final-20261006, with mocked network/radio/auth/
+routes. Covered60/300/900 delays, no backup, offline target/all links, first
+check action, global serialization, minute USB, state migration and stable
+recovery counter reset. Generated full suite now167 groups; not claiming a
+single full167 run after the final success-delay adjustment. Existing139 and
+final28 provide scoped coverage of the final revision.
+
+13:20:09 installed ONLY scut-link-recover(5343bytes) and scut-rate-watchdog
+(697bytes), checked nonempty/staged hashes/syntax/baseline and copied via
+same-filesystem temporary files with atomic rename. Held affected operation,
+QCA/switch/Portal locks and deployment guard. Dedicated backup
+/root/scut-multiwan-legacy-relaxed-backup-20261006(700). Installer restores
+baseline on ordinary errors/signals. No service restart, UCI/cron change or
+intentional production reassociation/authentication in this revision.
+
+Rollback: sh /root/scut-multiwan-legacy-relaxed-backup-20261006/rollback.sh
+Only two scripts; transient v2 state converted to old format with recorded
+attempt preserved. Never restore/delete persistent ledgers or quotas. Backup
+original hashes and rollback syntax checked; actual rollback not exercised.
+Dedicated manifests/install/rollback records in deployment/legacy-relaxed-
+20261006; do not replay installer or use earlier broad rollback.
+
+13:20:58 acceptance: actual minute task rc0, six interface-bound Bilibili/JD
+HEADs200,66–221ms; Native TX458.8/RX573.5Mbps HE9/11, USB573.5/573.5 HE11/11.
+Table103 three weights1 and iif-br-lan rule unchanged. Wired ready identity
+18410/3025749/exe remains valid. Both RAM states migrated to v2 with no attempt
+fabricated. Preserved network/wireless/firewall/system/DHCP/campus-auth/wired
+config,cron,three sessions and night-budget hashes ALL pass. No credential
+contents printed/downloaded. Production candidate hashes matched and manual
+rollback syntax valid. Natural faulty-association retry/long-term behaviour
+not induced; final failure paths verified in isolation. README, recovery doc
+and operations updated. No commit/push; existing changes retained.

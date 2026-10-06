@@ -320,6 +320,7 @@ esac
 
 #
 # A minute-rate task may own the device lock. Health/07:00 recovery must still run.
+/usr/bin/scut-link-recover "$DEV" || true
 maintain_rate "$RADIO" || true
 
 #

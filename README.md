@@ -8,6 +8,7 @@
 
 - Native 使用 radio0/phy0 或 radio2/phy2；USB 使用 radio3/phy3。保留原生 MAC，不固定 BSSID。
 - 原生 ath11k 速率维护只作用于 phy0/phy2，限制 MCS7/MCS9；新关联前 15 秒暂不依据 RX 降档/升档，仍处理真实网关丢包和 TX failure；USB 保留正常速率控制。
+- 白天分钟维护检查 Native/USB 的传统 `no HT` 关联；关联成熟且当前 AP 缓存宣告 HT/HE 时，首次符合条件即请求重关联，失败按 1/5/15 分钟退避并串行处理。保留会话/IP/接口匹配、Portal 锁以及所有日期的夜间禁止重关联规则；该流程不执行 Portal 认证。
 - Portal 登录/注销通过全局文件锁串行化。持久会话记录保留超时后的不确定状态，未确认释放旧会话时不继续登录。
 - 仅明确重定向到校园 Portal 时才自动认证；普通公网超时不会触发盲目登录。
 - 路由表 103、优先级 103，规则为 `iif br-lan lookup 103`。三路健康时权重 1:1:1；故障链路移出，双无线健康时保留 1:1。
@@ -25,12 +26,14 @@ ECMP 按连接分担流量，单个下载连接不等于两路带宽相加。
 
 ## 文件
 
+2026-10-06 12:49–12:51 Native 与 USB 分别重关联后恢复至 40 MHz HE。13:05 部署白天重关联保护，13:20 放宽为首次确认即修复、失败按 1/5/15 分钟退避，并在分钟任务中串行检查两路。部署前 161 组、修订前 139 组回归，以及最终修订的 28 组专项和 3 组静默检查分别在路由器 BusyBox ash 上通过；三路连通性与保留校验通过。长期复发和实际吞吐仍待观察。触发条件、验证边界和定向回滚见 [无线关联恢复](docs/legacy-association-recovery-20261006.md)。
+
 | 路径 | 内容 |
 | --- | --- |
 | `candidate/` | 维护脚本及热插拔钩子，目录结构对应路由器根目录 |
 | `tests/build_router_tests.py` | 生成隔离的 BusyBox ash 回归测试 |
-| `deployment/` | 稳定性、夜间策略、有线、体验改进及 `portal-response-limit-20261006/` 部署/回滚记录 |
-| `docs/` | 网络体验、资源容量和 Portal 响应限制评估/实施记录 |
+| `deployment/` | 稳定性、夜间策略、有线、体验改进、Portal 响应限制及 `legacy-recovery-20261006/`、`legacy-relaxed-20261006/` 部署/回滚记录 |
+| `docs/` | 网络体验、资源容量、Portal 响应限制和无线关联恢复评估/实施记录 |
 | `examples/campus-portal.conf.example` | 不含真实账号密码的配置示例 |
 | `THIRD_PARTY_NOTICES.md`、`LICENSES/` | 第三方来源、复用范围及许可证 |
 | `OPERATIONS.txt` | 本次修复与验证记录 |
@@ -63,7 +66,7 @@ tar -xf /tmp/router-suite.tar -C /tmp/scut-multiwan-tests-experience-20261006
 sh /tmp/scut-multiwan-tests-experience-20261006/run.sh
 ```
 
-测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 139 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
+测试将网络、无线、Portal 和路由命令替换为 mock，并重写脚本路径以隔离到该临时目录。当前生成包含 167 组检查；这不代表真实认证失败、漫游或夜间运行已经全部实测。不要在 Mac 上直接运行生成的 `run.sh`，它依赖 OpenWrt/Linux 环境。
 
 四个 HTTP Portal 入口的 1 MiB 响应限制已于 2026-10-06 03:11:49（GMT+8）部署；完整响应保留原处理，超限/传输不完整保留会话保护。139 组路由器隔离检查及 7 项实际 curl 合成 HTTP 检查已通过；部署后配置/会话/额度未变、三路 HTTPS 正常，真实下一次认证仍待观察。详见 [容量限制与验证边界](docs/portal-response-limit-20261006.md)。
 

@@ -158,6 +158,7 @@ fi
 # 已联网：什么都不做。
 
 #
+/usr/bin/scut-link-recover "$DEV" || true
 if internet_online "$DEV"; then
     exit 0
 fi

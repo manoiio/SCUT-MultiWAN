@@ -1,5 +1,5 @@
 #!/bin/sh
-# Minute-level daytime maintenance: no scan, DHCP or authentication.
+# Minute-level daytime maintenance: no full scan, DHCP or Portal authentication.
 . /usr/lib/scut-multiwan/common.sh || exit 1
 mw_require_scan 15 || exit $?
 mw_lock rate-watchdog 8 || exit $?
@@ -7,9 +7,11 @@ mw_lock rate-watchdog 8 || exit $?
 if awk '$1 < 3 {ok=1} END {exit !ok}' /proc/loadavg; then
     for dev in phy0-sta0 phy2-sta0; do
         iw dev "$dev" link 2>/dev/null | grep -q '^Connected to ' || continue
+        /usr/bin/scut-link-recover "$dev" || true
         /usr/bin/fix-qca-sta-rate "$dev" || true
         break
     done
+    /usr/bin/scut-link-recover phy3-sta0 || true
 fi
 mw_require_route 25 || exit $?
 exec /usr/bin/dualwan-refresh apply

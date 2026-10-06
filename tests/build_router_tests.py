@@ -52,7 +52,9 @@ mock = r'''#!/bin/sh
 name="${0##*/}"
 case "$name" in
  date) case "$1" in '+%Y-%m-%d %u %H %M %S') echo "${TEST_DATE:-2026-10-08} ${TEST_WEEKDAY:-4} ${TEST_CLOCK:-20 00 00}";; '+%H %M %S') echo "${TEST_CLOCK:-20 00 00}";; +%s) echo "${TEST_EPOCH:-1791432000}";; -d) echo "$2";; *) echo 'test clock';; esac; exit 0;;
- sleep) [ "$1" -ge 20 ] && /bin/sleep 1; exit 0;;
+ sleep)
+   if [ "$1" -ge 20 ] || { [ "${TEST_LEGACY:-0}" = 1 ] && [ "$1" = 2 ]; }; then /bin/sleep 1; fi
+   exit 0;;
  logger) [ -z "${TEST_PORTAL_LOG_CAPTURE:-}" ] || printf '%s\n' "$*" >> "$TEST_ROOT/portal-log"; exit 0;;
  scutclient-wired)
    read -r fixture_user; read -r fixture_pass
@@ -73,6 +75,14 @@ case "$name" in
    [ "${TEST_VERIFY_PING_FAIL:-0}" = 1 ] && [ "$count" -gt 5 ] && exit 1
    echo "64 bytes: time=1.0 ms"; exit "${TEST_PING_FAIL:-0}";;
  ubus|ifstatus)
+   if [ "$name" = ubus ] && [ "$3" = control ]; then
+     dev="${2#wpa_supplicant.}"
+     echo "REASSOCIATE $dev" >> "$TEST_ROOT/trace"
+     if [ "${TEST_REASSOC_FAIL:-0}" = 1 ]; then printf '{"result":"FAIL"}\n'; exit 0; fi
+     [ "${TEST_REASSOC_STUCK:-0}" = 1 ] || touch "$TEST_ROOT/reassociated-$dev"
+     [ "${TEST_REASSOC_IP_CHANGE:-0}" = 1 ] && touch "$TEST_ROOT/changed-ip-$dev"
+     printf '{"result":"OK"}\n'; exit 0
+   fi
    [ "$name" = ubus ] && iface="${2##*.}" || iface="$1"
    case "$iface" in wan1) dev=phy0-sta0; up=true;; wan2) dev=phy2-sta0; up=false; [ -f "$TEST_ROOT/radio2-enabled" ] && up=true;; usbwan) dev=phy3-sta0; up=true;; wan) dev=wan; up=true;; esac
    printf '{\n"up": %s,\n"l3_device": "%s"\n}\n' "$up" "$dev"; exit 0;;
@@ -84,15 +94,27 @@ case "$name" in
     link)
       case "$dev" in phy0-sta0) [ "${TEST_ACTIVE:-radio0}" = radio0 ] || exit 1;; phy2-sta0) [ "${TEST_ACTIVE:-radio0}" = both ] || [ -f "$TEST_ROOT/radio2-enabled" ] || exit 1;; esac
       printf 'Connected to 00:11:22:33:44:55 (on %s)\n freq: 5180\n' "$dev";;
-    info) [ "$dev" = phy0-sta0 ] || [ -f "$TEST_ROOT/radio2-enabled" ];;
+    info)
+      [ "$dev" = phy0-sta0 ] || [ "$dev" = phy3-sta0 ] || [ -f "$TEST_ROOT/radio2-enabled" ] || exit 1
+      if [ "${TEST_LEGACY:-0}" = 1 ] && [ ! -f "$TEST_ROOT/reassociated-$dev" ]; then
+        echo 'channel 36 (5180 MHz), width: 20 MHz (no HT)'
+      else echo 'channel 36 (5180 MHz), width: 40 MHz'; fi;;
     station)
       dumps="$(cat "$TEST_ROOT/dump-count" 2>/dev/null)"; dumps="${dumps:-0}"; dumps=$((dumps+1)); echo "$dumps" > "$TEST_ROOT/dump-count"
       assoc=1000.0s; [ "${TEST_ASSOC_CHANGE:-999999}" -gt "$dumps" ] || assoc=1001.0s
+      [ ! -f "$TEST_ROOT/reassociated-$dev" ] || assoc=1002.0s
+      printf 'Station 00:11:22:33:44:55 (on %s)\n' "$dev"
       printf 'rx packets: %s\nassociated at [boottime]: %s\n' "$((900+dumps))" "$assoc"
       rx="${TEST_RX:-11}"; [ "${TEST_RX_VALID_LIMIT:-999999}" -ge "$dumps" ] || rx='?'
       [ "${TEST_CONNECTED:-1000}" = missing ] || printf 'connected time: %s seconds\n' "${TEST_CONNECTED:-1000}"
       printf 'tx packets: 10000\ntx failed: %s\nsignal avg: -39\ntx bitrate: 458.8 MBit/s HE-MCS %s\nrx bitrate: 573.5 MBit/s HE-MCS %s\n' "${TEST_FAILED:-0}" "${TEST_TX:-9}" "$rx";;
-    scan) echo "SCAN $dev" >> "$TEST_ROOT/trace"; [ "${TEST_SCAN_EMPTY:-}" = "$dev" ] && exit 0; printf 'BSS 00:11:22:33:44:55\n freq: 5180\n signal: -39\n SSID: scut-student\n';;
+    scan)
+      if [ "$4" = dump ]; then
+        printf 'BSS %s(on %s)\n last seen: %s ms ago\n' "${TEST_CACHE_BSSID:-00:11:22:33:44:55}" "$dev" "${TEST_CACHE_AGE:-10}"
+        [ "${TEST_CACHE_HT:-1}" = 0 ] || echo ' HT capabilities:'
+        exit 0
+      fi
+      echo "SCAN $dev" >> "$TEST_ROOT/trace"; [ "${TEST_SCAN_EMPTY:-}" = "$dev" ] && exit 0; printf 'BSS 00:11:22:33:44:55\n freq: 5180\n signal: -39\n SSID: scut-student\n';;
     set) echo "RATE $dev $*" >> "$TEST_ROOT/trace"; case "$*" in *2:7*) [ "${TEST_ROLLBACK_RATE_FAIL:-0}" = 1 ] && exit 1;; esac; exit "${TEST_RATE_FAIL:-0}";;
     *) echo "iw $*" >> "$TEST_ROOT/trace";;
    esac; exit $?;;
@@ -100,6 +122,7 @@ case "$name" in
    dev=; prev=
    for arg in "$@"; do [ "$prev" = dev ] && dev="$arg"; prev="$arg"; done
    case "$dev" in phy0-sta0) ip=10.1.1.10; net=10.1.1.0/24; gw=10.1.1.1;; phy2-sta0) ip=10.3.3.30; net=10.3.3.0/24; gw=10.3.3.1;; phy3-sta0) ip=10.2.2.20; net=10.2.2.0/24; gw=10.2.2.1;; wan) ip=10.4.4.40; net=10.4.4.0/24; gw=10.4.4.1;; esac
+   [ ! -f "$TEST_ROOT/changed-ip-$dev" ] || ip=10.1.1.99
    case "$*" in
     '-4 -o addr show dev wan') echo "4: wan inet ${TEST_WIRED_IP:-10.4.4.40}/24 scope global";;
     *'addr show'*) echo "1: $dev inet $ip/24 scope global";;
@@ -203,6 +226,9 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
+ unset TEST_LEGACY TEST_REASSOC_FAIL TEST_REASSOC_STUCK TEST_REASSOC_IP_CHANGE TEST_CACHE_AGE TEST_CACHE_HT TEST_CACHE_BSSID
+ rm -rf "$TEST_ROOT/tmp/scut-link-recover"
+ rm -f "$TEST_ROOT"/reassociated-* "$TEST_ROOT"/changed-ip-* "$TEST_ROOT/tmp/qca-fixed-rate"/*.legacy
  unset TEST_PORTAL_LOGIN_BODY TEST_PORTAL_LOGOUT_BODY TEST_PORTAL_LOGIN_RC TEST_PORTAL_LOGOUT_RC TEST_PORTAL_LOG_CAPTURE
  rm -f "$TEST_ROOT/portal-log"
  unset TEST_WIRED_ONLINE TEST_WIRED_IP TEST_RX_VALID_LIMIT TEST_ASSOC_CHANGE TEST_DNS_FAIL
@@ -398,7 +424,7 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\n' + (root/'tests/legacy-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

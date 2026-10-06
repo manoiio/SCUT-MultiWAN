@@ -1,0 +1,4 @@
+61eae3132b8ef7f50d49b2c304876b58548bd7bf27c47eaa70fcf0173c3c899b  /usr/bin/fix-qca-sta-rate
+5a577190bdf6e0e7af27a319109020da03756d7e5ff7c6587fdac9d1d92c6464  /usr/bin/native-watchdog
+7a42d4240cbc0d1426efe49fd7d3b90f29ccb5c9f3b4d71786349f9943a82c89  /usr/bin/usb-watchdog
+ffa47935374e200f84b82b70bb21e63c670bda3e5eea7ebbe47dec334900ef91  /usr/bin/scut-rate-watchdog
