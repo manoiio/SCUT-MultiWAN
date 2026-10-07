@@ -1,0 +1,30 @@
+Wed Oct  7 15:27:26 CST 2026
+ 15:27:26 up 16 min,  load average: 0.89, 0.72, 0.46
+10.195.87.110 id 202 subflow dev phy3-sta0 
+110.64.88.149 id 203 subflow dev wan 
+add_addr_accepted 0 subflows 2 
+0:	from all lookup local
+80:	from 10.195.75.125 to 58.252.223.164 lookup 201
+81:	from 10.195.87.110 to 58.252.223.164 lookup 202
+82:	from 110.64.88.149 to 58.252.223.164 lookup 203
+103:	from all iif br-lan lookup 103
+32766:	from all lookup main
+32767:	from all lookup default
+default 
+	nexthop via 10.195.79.254 dev phy2-sta0 weight 1 
+	nexthop via 10.195.95.254 dev phy3-sta0 weight 1 
+	nexthop via 110.64.88.254 dev wan weight 1 
+10.195.64.0/20 dev phy2-sta0 scope link 
+10.195.80.0/20 dev phy3-sta0 scope link 
+110.64.88.0/24 dev wan scope link 
+/etc/config/network: OK
+/etc/config/wireless: OK
+/etc/config/firewall: OK
+/etc/config/dhcp: OK
+/etc/scut-multiwan/native.session: OK
+/etc/scut-multiwan/usb.session: OK
+/etc/scut-multiwan/wired.session: OK
+2765c12133d08a791b53fc017bb8f853ac71f60e23ba0492889f3f8a4ec36ce6  /usr/bin/scut-bond
+              total        used        free      shared  buff/cache   available
+Mem:         372348      186584      125600       11428       60164      125396
+Swap:             0           0           0

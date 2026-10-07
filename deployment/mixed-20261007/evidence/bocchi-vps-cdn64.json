@@ -1,0 +1,10 @@
+{
+  "http_code": 206,
+  "size_download": 67108864,
+  "time_total": 2.808325,
+  "speed_download_Bps": 23896402,
+  "mbps": 191.171216,
+  "remote_ip": "39.173.161.17",
+  "curl_exit": 0,
+  "scope": "Same file, UA, pinned CDN IP; one direct VPS request; no forwarding to LAN; short sample only"
+}

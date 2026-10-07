@@ -1,0 +1,22 @@
+{
+  "status": "deployed-current-service-accepted",
+  "deployed_at": "2026-10-07T18:09:41+08:00",
+  "verified_at": "2026-10-07T18:11:09+08:00",
+  "binary_sha256": "3e39bbb0fba78575fc31c0f6a142474cfa45b1222d95bc26c9263ecdbfe79e30",
+  "gate_sha256": "2ac9b3bd38a464af1982dd7254a5b24a9f28515586685c8db1e42825c430fed7",
+  "isolated_admission_checks": 11,
+  "isolated_busybox_groups": 177,
+  "protocol_checks": 33,
+  "engine_pid": 9646,
+  "engine_starttime": 62014,
+  "three_wan_https": true,
+  "route_table": 103,
+  "healthy_weights": [
+    1,
+    1,
+    1
+  ],
+  "boot_id": "1e642942-ec2c-4fc7-84e2-302aa6be4648",
+  "real_cold_boot_with_new_admission": "not tested",
+  "forced_live_lock_contention": "not performed"
+}

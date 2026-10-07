@@ -27,17 +27,7 @@ int wired_gate(const char *action) {
     return rc >= 0 && WIFEXITED(rc) ? WEXITSTATUS(rc) : 75;
 }
 
-int wired_begin(void) {
-    int fd = open("/tmp/scut-multiwan-locks/portal", O_WRONLY|O_CREAT, 0600);
-    if (fd < 0) return 75;
-    if (fd != 9) { if (dup2(fd, 9) < 0) { close(fd); return 75; } close(fd); }
-    if (flock(9, LOCK_EX|LOCK_NB)) { close(9); return 75; }
-    locked = 1;
-    int rc = wired_gate("prepare");
-    if (rc) { flock(9, LOCK_UN); close(9); locked = 0; return rc; }
-    deadline = wired_now() + 45;
-    return 0;
-}
+#include "wired-admission.inc"
 
 int wired_expired(void) { return locked && wired_now() >= deadline; }
 int wired_locked(void) { return locked; }
@@ -113,6 +103,7 @@ static int release_only(void) {
     if (fd < 0) return 75;
     if (fd != 9) { if (dup2(fd,9)<0) { close(fd); return 75; } close(fd); }
     if (flock(9,LOCK_EX|LOCK_NB)) return 75;
+    locked=1;
     int rc=wired_gate("cleanup");
     if (rc) return rc;
     rc=wired_gate("needs-release");
@@ -127,6 +118,7 @@ static int release_only(void) {
 }
 
 int main(int argc, char **argv) {
+    openlog("scut-wired",LOG_PID,LOG_DAEMON);
     if (argc == 2 && !strcmp(argv[1], "--version")) {
         puts("scutclient 3.1.3 + SCUT-MultiWAN guarded single-attempt adapter");
         return 0;

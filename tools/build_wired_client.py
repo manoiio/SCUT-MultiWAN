@@ -53,6 +53,14 @@ s = s.replace('PrintHex(DOT1X, "Packet received", recv_data, recv_len);\n\t\tret
 s = s.replace('"Server: Authentication failed: %s", errstr', '"Server: Authentication failed"')
 s = s.replace('"Server: Notification: %s", recv_data + 23', '"Server: Notification received"')
 s = s.replace('"%s%s", "Server: Server Information: ", recv_data + 4', '"Server information received"')
+s = s.replace('#include "info.h"', '#include "info.h"\n#include <syslog.h>')
+start = s.index('int auth_8021x_Logoff() {')
+end = s.index('\nint auth_UDP_Init()', start)
+s = s[:start] + (root/'tools/wired-logoff.inc').read_text() + s[end:]
+s = s.replace('if (auth_8021x_Logoff() != 1 || wired_gate("released")) { ret=75; goto ERR1; }',
+              'int released=auth_8021x_Logoff();\n\t\tsyslog(LOG_INFO,"phase=old-session-release confirmed=%d",released==1);\n\t\tif (released != 1 || wired_gate("released")) { ret=75; goto ERR1; }')
+s = s.replace('int recv_len = recv(auth_8021x_sock, recv_data, ETH_FRAME_LEN, 0);',
+              'int recv_len = recv(auth_8021x_sock, recv_data, ETH_FRAME_LEN, 0);\n\tif (!resev && recv_len >= 22) syslog(LOG_INFO,"phase=eap-receive bytes=%d version=%u type=%u code=%u length=%u",recv_len,recv_data[14],recv_data[15],recv_data[18],((unsigned)recv_data[20]<<8)|recv_data[21]);')
 auth.write_text(s)
 sources = [a.source/'src'/f'{name}.c' for name in ('auth','drcom','functions','info','md5')]
 a.output.parent.mkdir(parents=True,exist_ok=True)

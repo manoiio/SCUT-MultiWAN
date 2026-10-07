@@ -1,0 +1,1960 @@
+[
+  {
+    "time": "2026-10-07T18:24:03+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 31.0,
+    "ssthresh": 30.0,
+    "bytes_sent": 943688.0,
+    "bytes_retrans": 5648.0,
+    "bytes_acked": 898002.0,
+    "delivery_rate": 35330424.0
+  },
+  {
+    "time": "2026-10-07T18:24:03+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 249.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 879236.0,
+    "bytes_acked": 768858.0,
+    "delivery_rate": 49667064.0
+  },
+  {
+    "time": "2026-10-07T18:24:03+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 227.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 945746.0,
+    "bytes_acked": 827106.0,
+    "delivery_rate": 52724560.0
+  },
+  {
+    "time": "2026-10-07T18:24:04+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 23.0,
+    "ssthresh": 13.0,
+    "bytes_sent": 3514252.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 3463420.0,
+    "delivery_rate": 26416504.0
+  },
+  {
+    "time": "2026-10-07T18:24:04+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 249.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 6424314.0,
+    "bytes_acked": 6335358.0,
+    "delivery_rate": 42980008.0
+  },
+  {
+    "time": "2026-10-07T18:24:04+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 227.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 6494428.0,
+    "bytes_acked": 6411120.0,
+    "delivery_rate": 46685216.0
+  },
+  {
+    "time": "2026-10-07T18:24:05+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 7.0,
+    "bytes_sent": 5900246.0,
+    "bytes_retrans": 29652.0,
+    "bytes_acked": 5850086.0,
+    "delivery_rate": 17358104.0
+  },
+  {
+    "time": "2026-10-07T18:24:05+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 262.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 11817484.0,
+    "bytes_acked": 11711696.0,
+    "delivery_rate": 45679568.0
+  },
+  {
+    "time": "2026-10-07T18:24:05+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 239.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 11836120.0,
+    "bytes_acked": 11723970.0,
+    "delivery_rate": 41394576.0
+  },
+  {
+    "time": "2026-10-07T18:24:06+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 16.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 8684922.0,
+    "bytes_retrans": 40948.0,
+    "bytes_acked": 8597098.0,
+    "delivery_rate": 26331424.0
+  },
+  {
+    "time": "2026-10-07T18:24:06+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 17310926.0,
+    "bytes_acked": 17173930.0,
+    "delivery_rate": 39365504.0
+  },
+  {
+    "time": "2026-10-07T18:24:06+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 17252644.0,
+    "bytes_acked": 17136868.0,
+    "delivery_rate": 46903520.0
+  },
+  {
+    "time": "2026-10-07T18:24:07+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 8.0,
+    "ssthresh": 6.0,
+    "bytes_sent": 10436290.0,
+    "bytes_retrans": 53532.0,
+    "bytes_acked": 10371462.0,
+    "delivery_rate": 9501024.0
+  },
+  {
+    "time": "2026-10-07T18:24:07+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 22887978.0,
+    "bytes_acked": 22755014.0,
+    "delivery_rate": 44643792.0
+  },
+  {
+    "time": "2026-10-07T18:24:07+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 22812272.0,
+    "bytes_acked": 22706644.0,
+    "delivery_rate": 41433760.0
+  },
+  {
+    "time": "2026-10-07T18:24:08+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 20.0,
+    "ssthresh": 15.0,
+    "bytes_sent": 12642050.0,
+    "bytes_retrans": 60592.0,
+    "bytes_acked": 12553218.0,
+    "delivery_rate": 21953856.0
+  },
+  {
+    "time": "2026-10-07T18:24:08+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 28450666.0,
+    "bytes_acked": 28322342.0,
+    "delivery_rate": 43590808.0
+  },
+  {
+    "time": "2026-10-07T18:24:08+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 28408392.0,
+    "bytes_acked": 28298564.0,
+    "delivery_rate": 44188720.0
+  },
+  {
+    "time": "2026-10-07T18:24:09+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 17.0,
+    "bytes_sent": 15694378.0,
+    "bytes_retrans": 70476.0,
+    "bytes_acked": 15599898.0,
+    "delivery_rate": 18314784.0
+  },
+  {
+    "time": "2026-10-07T18:24:09+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 34004254.0,
+    "bytes_acked": 33861662.0,
+    "delivery_rate": 42823744.0
+  },
+  {
+    "time": "2026-10-07T18:24:09+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 33951880.0,
+    "bytes_acked": 33846188.0,
+    "delivery_rate": 40304296.0
+  },
+  {
+    "time": "2026-10-07T18:24:10+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 17.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 17925034.0,
+    "bytes_retrans": 80360.0,
+    "bytes_acked": 17820670.0,
+    "delivery_rate": 19989792.0
+  },
+  {
+    "time": "2026-10-07T18:24:10+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 39566906.0,
+    "bytes_acked": 39444198.0,
+    "delivery_rate": 40610456.0
+  },
+  {
+    "time": "2026-10-07T18:24:10+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 39530220.0,
+    "bytes_acked": 39396416.0,
+    "delivery_rate": 43819320.0
+  },
+  {
+    "time": "2026-10-07T18:24:11+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 8.0,
+    "ssthresh": 7.0,
+    "bytes_sent": 20261126.0,
+    "bytes_retrans": 92144.0,
+    "bytes_acked": 20158522.0,
+    "delivery_rate": 9654304.0
+  },
+  {
+    "time": "2026-10-07T18:24:11+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 45136434.0,
+    "bytes_acked": 45002118.0,
+    "delivery_rate": 45102296.0
+  },
+  {
+    "time": "2026-10-07T18:24:11+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 45103456.0,
+    "bytes_acked": 44966244.0,
+    "delivery_rate": 44053536.0
+  },
+  {
+    "time": "2026-10-07T18:24:12+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 17.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 22424302.0,
+    "bytes_retrans": 99204.0,
+    "bytes_acked": 22301094.0,
+    "delivery_rate": 20845128.0
+  },
+  {
+    "time": "2026-10-07T18:24:12+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 50703546.0,
+    "bytes_acked": 50579034.0,
+    "delivery_rate": 44678056.0
+  },
+  {
+    "time": "2026-10-07T18:24:12+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 50658800.0,
+    "bytes_acked": 50548160.0,
+    "delivery_rate": 52342000.0
+  },
+  {
+    "time": "2026-10-07T18:24:13+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 12.0,
+    "bytes_sent": 24478574.0,
+    "bytes_retrans": 110500.0,
+    "bytes_acked": 24349718.0,
+    "delivery_rate": 14155232.0
+  },
+  {
+    "time": "2026-10-07T18:24:13+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 56271958.0,
+    "bytes_acked": 56152158.0,
+    "delivery_rate": 47339400.0
+  },
+  {
+    "time": "2026-10-07T18:24:13+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 56224520.0,
+    "bytes_acked": 56127400.0,
+    "delivery_rate": 44166424.0
+  },
+  {
+    "time": "2026-10-07T18:24:14+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 28.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 27055366.0,
+    "bytes_retrans": 116148.0,
+    "bytes_acked": 26939218.0,
+    "delivery_rate": 31735536.0
+  },
+  {
+    "time": "2026-10-07T18:24:14+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 276.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 61789658.0,
+    "bytes_acked": 61411630.0,
+    "delivery_rate": 45484240.0
+  },
+  {
+    "time": "2026-10-07T18:24:14+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 251.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 61733600.0,
+    "bytes_acked": 61390180.0,
+    "delivery_rate": 50778872.0
+  },
+  {
+    "time": "2026-10-07T18:24:15+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 22.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 29756426.0,
+    "bytes_retrans": 124620.0,
+    "bytes_acked": 29600742.0,
+    "delivery_rate": 24234768.0
+  },
+  {
+    "time": "2026-10-07T18:24:15+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 67270650.0,
+    "bytes_acked": 67141854.0,
+    "delivery_rate": 44627704.0
+  },
+  {
+    "time": "2026-10-07T18:24:15+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 393.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 67197712.0,
+    "bytes_acked": 67052988.0,
+    "delivery_rate": 44225680.0
+  },
+  {
+    "time": "2026-10-07T18:24:17+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 8.0,
+    "bytes_sent": 32847194.0,
+    "bytes_retrans": 134504.0,
+    "bytes_acked": 32692414.0,
+    "delivery_rate": 15984136.0
+  },
+  {
+    "time": "2026-10-07T18:24:17+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 72876410.0,
+    "bytes_acked": 72727654.0,
+    "delivery_rate": 46258808.0
+  },
+  {
+    "time": "2026-10-07T18:24:17+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 393.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 72751852.0,
+    "bytes_acked": 72631944.0,
+    "delivery_rate": 48436928.0
+  },
+  {
+    "time": "2026-10-07T18:24:18+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 21.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 35138434.0,
+    "bytes_retrans": 144388.0,
+    "bytes_acked": 34964790.0,
+    "delivery_rate": 23565504.0
+  },
+  {
+    "time": "2026-10-07T18:24:18+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 78462870.0,
+    "bytes_acked": 78309334.0,
+    "delivery_rate": 34934352.0
+  },
+  {
+    "time": "2026-10-07T18:24:18+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 393.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 78335992.0,
+    "bytes_acked": 78217004.0,
+    "delivery_rate": 45484560.0
+  },
+  {
+    "time": "2026-10-07T18:24:19+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 8.0,
+    "ssthresh": 7.0,
+    "bytes_sent": 37408686.0,
+    "bytes_retrans": 156712.0,
+    "bytes_acked": 37240678.0,
+    "delivery_rate": 9714344.0
+  },
+  {
+    "time": "2026-10-07T18:24:19+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 84003874.0,
+    "bytes_acked": 83861466.0,
+    "delivery_rate": 42361688.0
+  },
+  {
+    "time": "2026-10-07T18:24:19+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 393.0,
+    "ssthresh": 227.0,
+    "bytes_sent": 83932688.0,
+    "bytes_acked": 83793804.0,
+    "delivery_rate": 37843400.0
+  },
+  {
+    "time": "2026-10-07T18:24:20+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 10.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 39922838.0,
+    "bytes_retrans": 168008.0,
+    "bytes_acked": 39740710.0,
+    "delivery_rate": 10839512.0
+  },
+  {
+    "time": "2026-10-07T18:24:20+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 89599486.0,
+    "bytes_acked": 89434282.0,
+    "delivery_rate": 35399472.0
+  },
+  {
+    "time": "2026-10-07T18:24:20+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 89486152.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 89343788.0,
+    "delivery_rate": 37964984.0
+  },
+  {
+    "time": "2026-10-07T18:24:21+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 16.0,
+    "ssthresh": 15.0,
+    "bytes_sent": 42164954.0,
+    "bytes_retrans": 176480.0,
+    "bytes_acked": 41967178.0,
+    "delivery_rate": 16480680.0
+  },
+  {
+    "time": "2026-10-07T18:24:21+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 95131606.0,
+    "bytes_acked": 95009670.0,
+    "delivery_rate": 41488592.0
+  },
+  {
+    "time": "2026-10-07T18:24:21+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 95050860.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 94909908.0,
+    "delivery_rate": 35584256.0
+  },
+  {
+    "time": "2026-10-07T18:24:22+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 28.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 44712058.0,
+    "bytes_retrans": 183540.0,
+    "bytes_acked": 44491806.0,
+    "delivery_rate": 31274928.0
+  },
+  {
+    "time": "2026-10-07T18:24:22+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 100705510.0,
+    "bytes_acked": 100614806.0,
+    "delivery_rate": 46950872.0
+  },
+  {
+    "time": "2026-10-07T18:24:22+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 100621696.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 100513548.0,
+    "delivery_rate": 39043320.0
+  },
+  {
+    "time": "2026-10-07T18:24:23+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 21.0,
+    "ssthresh": 19.0,
+    "bytes_sent": 48406630.0,
+    "bytes_retrans": 193424.0,
+    "bytes_acked": 48180730.0,
+    "delivery_rate": 21570904.0
+  },
+  {
+    "time": "2026-10-07T18:24:23+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 106273650.0,
+    "bytes_acked": 106174810.0,
+    "delivery_rate": 44771952.0
+  },
+  {
+    "time": "2026-10-07T18:24:23+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 106162108.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 106057636.0,
+    "delivery_rate": 31400488.0
+  },
+  {
+    "time": "2026-10-07T18:24:24+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 23.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 50908882.0,
+    "bytes_retrans": 207544.0,
+    "bytes_acked": 50669634.0,
+    "delivery_rate": 24769344.0
+  },
+  {
+    "time": "2026-10-07T18:24:24+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 249.0,
+    "bytes_sent": 111865174.0,
+    "bytes_acked": 111737086.0,
+    "delivery_rate": 44965416.0
+  },
+  {
+    "time": "2026-10-07T18:24:24+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 111769092.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 111622552.0,
+    "delivery_rate": 50618104.0
+  },
+  {
+    "time": "2026-10-07T18:24:25+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 20.0,
+    "ssthresh": 15.0,
+    "bytes_sent": 53896638.0,
+    "bytes_retrans": 213852.0,
+    "bytes_acked": 53655758.0,
+    "delivery_rate": 24201680.0
+  },
+  {
+    "time": "2026-10-07T18:24:25+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 117452022.0,
+    "bytes_acked": 117315966.0,
+    "delivery_rate": 48626416.0
+  },
+  {
+    "time": "2026-10-07T18:24:25+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 117215144.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 117086612.0,
+    "delivery_rate": 48295928.0
+  },
+  {
+    "time": "2026-10-07T18:24:26+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 23.0,
+    "ssthresh": 18.0,
+    "bytes_sent": 56830258.0,
+    "bytes_retrans": 224240.0,
+    "bytes_acked": 56573542.0,
+    "delivery_rate": 25083128.0
+  },
+  {
+    "time": "2026-10-07T18:24:26+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 123007166.0,
+    "bytes_acked": 122881242.0,
+    "delivery_rate": 54220080.0
+  },
+  {
+    "time": "2026-10-07T18:24:26+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 275.0,
+    "ssthresh": 275.0,
+    "bytes_sent": 122770324.0,
+    "bytes_retrans": 8472.0,
+    "bytes_acked": 122637768.0,
+    "delivery_rate": 32906104.0
+  },
+  {
+    "time": "2026-10-07T18:24:27+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 16.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 59110446.0,
+    "bytes_retrans": 234124.0,
+    "bytes_acked": 58853730.0,
+    "delivery_rate": 25012400.0
+  },
+  {
+    "time": "2026-10-07T18:24:27+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 128533710.0,
+    "bytes_acked": 128426398.0,
+    "delivery_rate": 41955288.0
+  },
+  {
+    "time": "2026-10-07T18:24:27+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 192.0,
+    "bytes_sent": 128328940.0,
+    "bytes_retrans": 12708.0,
+    "bytes_acked": 128193432.0,
+    "delivery_rate": 42426824.0
+  },
+  {
+    "time": "2026-10-07T18:24:28+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 12.0,
+    "bytes_sent": 60619138.0,
+    "bytes_retrans": 246832.0,
+    "bytes_acked": 60353950.0,
+    "delivery_rate": 13277448.0
+  },
+  {
+    "time": "2026-10-07T18:24:28+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 134122754.0,
+    "bytes_acked": 134007678.0,
+    "delivery_rate": 27437216.0
+  },
+  {
+    "time": "2026-10-07T18:24:28+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 192.0,
+    "bytes_sent": 133895824.0,
+    "bytes_retrans": 12708.0,
+    "bytes_acked": 133769412.0,
+    "delivery_rate": 49439752.0
+  },
+  {
+    "time": "2026-10-07T18:24:29+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 17.0,
+    "ssthresh": 17.0,
+    "bytes_sent": 62928062.0,
+    "bytes_retrans": 256716.0,
+    "bytes_acked": 62608946.0,
+    "delivery_rate": 27425848.0
+  },
+  {
+    "time": "2026-10-07T18:24:29+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 139722822.0,
+    "bytes_acked": 139593362.0,
+    "delivery_rate": 46272312.0
+  },
+  {
+    "time": "2026-10-07T18:24:29+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 192.0,
+    "bytes_sent": 139440696.0,
+    "bytes_retrans": 12708.0,
+    "bytes_acked": 139342764.0,
+    "delivery_rate": 38471240.0
+  },
+  {
+    "time": "2026-10-07T18:24:30+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 64982486.0,
+    "bytes_retrans": 269424.0,
+    "bytes_acked": 64692826.0,
+    "delivery_rate": 17692224.0
+  },
+  {
+    "time": "2026-10-07T18:24:30+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 145278290.0,
+    "bytes_acked": 145162706.0,
+    "delivery_rate": 46445568.0
+  },
+  {
+    "time": "2026-10-07T18:24:30+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 145013208.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 144901256.0,
+    "delivery_rate": 46595128.0
+  },
+  {
+    "time": "2026-10-07T18:24:31+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 22.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 67656146.0,
+    "bytes_retrans": 276484.0,
+    "bytes_acked": 67348866.0,
+    "delivery_rate": 23762376.0
+  },
+  {
+    "time": "2026-10-07T18:24:31+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 150834510.0,
+    "bytes_acked": 150703482.0,
+    "delivery_rate": 36608616.0
+  },
+  {
+    "time": "2026-10-07T18:24:31+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 150575988.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 150460744.0,
+    "delivery_rate": 41588440.0
+  },
+  {
+    "time": "2026-10-07T18:24:32+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 12.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 70401754.0,
+    "bytes_retrans": 287780.0,
+    "bytes_acked": 70097970.0,
+    "delivery_rate": 12954400.0
+  },
+  {
+    "time": "2026-10-07T18:24:32+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 156440738.0,
+    "bytes_acked": 156281246.0,
+    "delivery_rate": 46313344.0
+  },
+  {
+    "time": "2026-10-07T18:24:32+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 156138612.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 156007820.0,
+    "delivery_rate": 47009120.0
+  },
+  {
+    "time": "2026-10-07T18:24:33+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 12.0,
+    "bytes_sent": 72722994.0,
+    "bytes_retrans": 295868.0,
+    "bytes_acked": 72408770.0,
+    "delivery_rate": 13979272.0
+  },
+  {
+    "time": "2026-10-07T18:24:33+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 161993098.0,
+    "bytes_acked": 161829230.0,
+    "delivery_rate": 52696184.0
+  },
+  {
+    "time": "2026-10-07T18:24:33+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 161604556.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 161502052.0,
+    "delivery_rate": 47897712.0
+  },
+  {
+    "time": "2026-10-07T18:24:34+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 6.0,
+    "ssthresh": 5.0,
+    "bytes_sent": 74275926.0,
+    "bytes_retrans": 311400.0,
+    "bytes_acked": 73956054.0,
+    "delivery_rate": 7164176.0
+  },
+  {
+    "time": "2026-10-07T18:24:34+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 167528022.0,
+    "bytes_acked": 167169266.0,
+    "delivery_rate": 35427984.0
+  },
+  {
+    "time": "2026-10-07T18:24:34+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 184.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 167164560.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 167027208.0,
+    "delivery_rate": 51006552.0
+  },
+  {
+    "time": "2026-10-07T18:24:35+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 12.0,
+    "ssthresh": 10.0,
+    "bytes_sent": 75507170.0,
+    "bytes_retrans": 322696.0,
+    "bytes_acked": 75167530.0,
+    "delivery_rate": 11745296.0
+  },
+  {
+    "time": "2026-10-07T18:24:35+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 173104126.0,
+    "bytes_acked": 172937226.0,
+    "delivery_rate": 38104944.0
+  },
+  {
+    "time": "2026-10-07T18:24:35+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 172402780.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 172282760.0,
+    "delivery_rate": 48267360.0
+  },
+  {
+    "time": "2026-10-07T18:24:36+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 77993938.0,
+    "bytes_retrans": 332580.0,
+    "bytes_acked": 77617978.0,
+    "delivery_rate": 25107984.0
+  },
+  {
+    "time": "2026-10-07T18:24:36+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 178636426.0,
+    "bytes_acked": 178521258.0,
+    "delivery_rate": 35310344.0
+  },
+  {
+    "time": "2026-10-07T18:24:36+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 177980964.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 177858144.0,
+    "delivery_rate": 40922744.0
+  },
+  {
+    "time": "2026-10-07T18:24:37+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 80006874.0,
+    "bytes_retrans": 342464.0,
+    "bytes_acked": 79646510.0,
+    "delivery_rate": 14510336.0
+  },
+  {
+    "time": "2026-10-07T18:24:37+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 184222722.0,
+    "bytes_acked": 184085866.0,
+    "delivery_rate": 44010464.0
+  },
+  {
+    "time": "2026-10-07T18:24:37+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 192.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 183520948.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 183404124.0,
+    "delivery_rate": 42456344.0
+  },
+  {
+    "time": "2026-10-07T18:24:38+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 8.0,
+    "ssthresh": 6.0,
+    "bytes_sent": 81709162.0,
+    "bytes_retrans": 355172.0,
+    "bytes_acked": 81342694.0,
+    "delivery_rate": 9554216.0
+  },
+  {
+    "time": "2026-10-07T18:24:38+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 189748258.0,
+    "bytes_acked": 189636710.0,
+    "delivery_rate": 42150288.0
+  },
+  {
+    "time": "2026-10-07T18:24:38+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 189095860.0,
+    "bytes_retrans": 16944.0,
+    "bytes_acked": 188975336.0,
+    "delivery_rate": 37351144.0
+  },
+  {
+    "time": "2026-10-07T18:24:39+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 10.0,
+    "bytes_sent": 83411062.0,
+    "bytes_retrans": 365056.0,
+    "bytes_acked": 83021558.0,
+    "delivery_rate": 19463568.0
+  },
+  {
+    "time": "2026-10-07T18:24:39+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 425.0,
+    "ssthresh": 318.0,
+    "bytes_sent": 195332210.0,
+    "bytes_acked": 195189218.0,
+    "delivery_rate": 45557152.0
+  },
+  {
+    "time": "2026-10-07T18:24:39+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 134.0,
+    "ssthresh": 134.0,
+    "bytes_sent": 194657520.0,
+    "bytes_retrans": 16944.0,
+    "bytes_acked": 194532804.0,
+    "delivery_rate": 44514144.0
+  },
+  {
+    "time": "2026-10-07T18:24:40+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 15.0,
+    "bytes_sent": 85646078.0,
+    "bytes_retrans": 374940.0,
+    "bytes_acked": 85271138.0,
+    "delivery_rate": 3174152.0
+  },
+  {
+    "time": "2026-10-07T18:24:40+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 297.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 200133846.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 199992042.0,
+    "delivery_rate": 47578728.0
+  },
+  {
+    "time": "2026-10-07T18:24:40+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 93.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 198307960.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 198289604.0,
+    "delivery_rate": 40000000.0
+  },
+  {
+    "time": "2026-10-07T18:24:41+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 14.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 87605806.0,
+    "bytes_retrans": 386236.0,
+    "bytes_acked": 87199802.0,
+    "delivery_rate": 16589176.0
+  },
+  {
+    "time": "2026-10-07T18:24:41+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 297.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 205696226.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 205545842.0,
+    "delivery_rate": 45704424.0
+  },
+  {
+    "time": "2026-10-07T18:24:41+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 105.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 203176944.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 203066772.0,
+    "delivery_rate": 45852816.0
+  },
+  {
+    "time": "2026-10-07T18:24:42+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 27.0,
+    "ssthresh": 21.0,
+    "bytes_sent": 90532254.0,
+    "bytes_retrans": 393296.0,
+    "bytes_acked": 90100834.0,
+    "delivery_rate": 30641312.0
+  },
+  {
+    "time": "2026-10-07T18:24:42+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 297.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 211262970.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 211112542.0,
+    "delivery_rate": 41626424.0
+  },
+  {
+    "time": "2026-10-07T18:24:42+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 112.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 208661552.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 208536792.0,
+    "delivery_rate": 39843800.0
+  },
+  {
+    "time": "2026-10-07T18:24:43+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 93064342.0,
+    "bytes_retrans": 403180.0,
+    "bytes_acked": 92637158.0,
+    "delivery_rate": 19359304.0
+  },
+  {
+    "time": "2026-10-07T18:24:43+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 216693750.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 216555778.0,
+    "delivery_rate": 45706664.0
+  },
+  {
+    "time": "2026-10-07T18:24:43+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 113.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 213791488.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 213682764.0,
+    "delivery_rate": 39274584.0
+  },
+  {
+    "time": "2026-10-07T18:24:44+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 95616626.0,
+    "bytes_retrans": 413064.0,
+    "bytes_acked": 95182382.0,
+    "delivery_rate": 16716416.0
+  },
+  {
+    "time": "2026-10-07T18:24:44+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 222268710.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 222106174.0,
+    "delivery_rate": 42757600.0
+  },
+  {
+    "time": "2026-10-07T18:24:44+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 113.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 219313520.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 219194684.0,
+    "delivery_rate": 46245504.0
+  },
+  {
+    "time": "2026-10-07T18:24:45+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 10.0,
+    "ssthresh": 8.0,
+    "bytes_sent": 97134586.0,
+    "bytes_retrans": 425772.0,
+    "bytes_acked": 96696562.0,
+    "delivery_rate": 11844536.0
+  },
+  {
+    "time": "2026-10-07T18:24:45+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 227798234.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 227679666.0,
+    "delivery_rate": 50390448.0
+  },
+  {
+    "time": "2026-10-07T18:24:45+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 113.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 224870440.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 224764696.0,
+    "delivery_rate": 49399120.0
+  },
+  {
+    "time": "2026-10-07T18:24:46+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 98802094.0,
+    "bytes_retrans": 435656.0,
+    "bytes_acked": 98341534.0,
+    "delivery_rate": 20336448.0
+  },
+  {
+    "time": "2026-10-07T18:24:46+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 233397846.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 233253658.0,
+    "delivery_rate": 45153080.0
+  },
+  {
+    "time": "2026-10-07T18:24:46+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 113.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 230445144.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 230331416.0,
+    "delivery_rate": 44634568.0
+  },
+  {
+    "time": "2026-10-07T18:24:47+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 100640626.0,
+    "bytes_retrans": 446980.0,
+    "bytes_acked": 100173374.0,
+    "delivery_rate": 18071528.0
+  },
+  {
+    "time": "2026-10-07T18:24:47+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 238944278.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 238817750.0,
+    "delivery_rate": 39760784.0
+  },
+  {
+    "time": "2026-10-07T18:24:47+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 117.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 236008564.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 235896012.0,
+    "delivery_rate": 45317160.0
+  },
+  {
+    "time": "2026-10-07T18:24:48+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 10.0,
+    "ssthresh": 8.0,
+    "bytes_sent": 102606534.0,
+    "bytes_retrans": 461100.0,
+    "bytes_acked": 102131314.0,
+    "delivery_rate": 10688656.0
+  },
+  {
+    "time": "2026-10-07T18:24:48+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 244479262.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 244373362.0,
+    "delivery_rate": 49341464.0
+  },
+  {
+    "time": "2026-10-07T18:24:48+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 117.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 241567532.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 241458660.0,
+    "delivery_rate": 48026680.0
+  },
+  {
+    "time": "2026-10-07T18:24:49+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 16.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 104854202.0,
+    "bytes_retrans": 469572.0,
+    "bytes_acked": 104341266.0,
+    "delivery_rate": 24028600.0
+  },
+  {
+    "time": "2026-10-07T18:24:49+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 250103766.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 249949854.0,
+    "delivery_rate": 47353440.0
+  },
+  {
+    "time": "2026-10-07T18:24:49+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 141.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 247140912.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 247027548.0,
+    "delivery_rate": 48035464.0
+  },
+  {
+    "time": "2026-10-07T18:24:50+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 24.0,
+    "ssthresh": 23.0,
+    "bytes_sent": 107440382.0,
+    "bytes_retrans": 479456.0,
+    "bytes_acked": 106928218.0,
+    "delivery_rate": 25858584.0
+  },
+  {
+    "time": "2026-10-07T18:24:50+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 255623138.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 255514474.0,
+    "delivery_rate": 49232400.0
+  },
+  {
+    "time": "2026-10-07T18:24:50+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 187.0,
+    "ssthresh": 93.0,
+    "bytes_sent": 252702988.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 252583372.0,
+    "delivery_rate": 43823328.0
+  },
+  {
+    "time": "2026-10-07T18:24:51+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 11.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 109384586.0,
+    "bytes_retrans": 493576.0,
+    "bytes_acked": 108875478.0,
+    "delivery_rate": 15154824.0
+  },
+  {
+    "time": "2026-10-07T18:24:51+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 261180218.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 261072906.0,
+    "delivery_rate": 45062976.0
+  },
+  {
+    "time": "2026-10-07T18:24:51+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 130.0,
+    "ssthresh": 130.0,
+    "bytes_sent": 258279888.0,
+    "bytes_retrans": 19768.0,
+    "bytes_acked": 258156392.0,
+    "delivery_rate": 43294704.0
+  },
+  {
+    "time": "2026-10-07T18:24:52+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 35.0,
+    "ssthresh": 19.0,
+    "bytes_sent": 112442926.0,
+    "bytes_retrans": 497812.0,
+    "bytes_acked": 111896118.0,
+    "delivery_rate": 38823528.0
+  },
+  {
+    "time": "2026-10-07T18:24:52+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 392.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 266774694.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 266636006.0,
+    "delivery_rate": 44856632.0
+  },
+  {
+    "time": "2026-10-07T18:24:52+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 161.0,
+    "ssthresh": 130.0,
+    "bytes_sent": 263840264.0,
+    "bytes_retrans": 19768.0,
+    "bytes_acked": 263701888.0,
+    "delivery_rate": 43814776.0
+  },
+  {
+    "time": "2026-10-07T18:24:53+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 35.0,
+    "ssthresh": 18.0,
+    "bytes_sent": 115014626.0,
+    "bytes_retrans": 507472.0,
+    "bytes_acked": 114507154.0,
+    "delivery_rate": 38907320.0
+  },
+  {
+    "time": "2026-10-07T18:24:53+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 466.0,
+    "ssthresh": 297.0,
+    "bytes_sent": 271617126.0,
+    "bytes_retrans": 7060.0,
+    "bytes_acked": 271610066.0,
+    "delivery_rate": 17063048.0
+  },
+  {
+    "time": "2026-10-07T18:24:53+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 176.0,
+    "ssthresh": 130.0,
+    "bytes_sent": 268044004.0,
+    "bytes_retrans": 19768.0,
+    "bytes_acked": 268024236.0,
+    "delivery_rate": 12869928.0
+  },
+  {
+    "time": "2026-10-07T18:24:54+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 17.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 116400186.0,
+    "bytes_retrans": 515944.0,
+    "bytes_acked": 115860238.0,
+    "delivery_rate": 19675488.0
+  },
+  {
+    "time": "2026-10-07T18:24:54+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 326.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 276155858.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 276058430.0,
+    "delivery_rate": 42466336.0
+  },
+  {
+    "time": "2026-10-07T18:24:54+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 73.0,
+    "ssthresh": 54.0,
+    "bytes_sent": 271771940.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 271714048.0,
+    "delivery_rate": 42511432.0
+  },
+  {
+    "time": "2026-10-07T18:24:55+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 19.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 117328926.0,
+    "bytes_retrans": 518768.0,
+    "bytes_acked": 116810158.0,
+    "delivery_rate": 3835784.0
+  },
+  {
+    "time": "2026-10-07T18:24:55+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 326.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 279235590.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 279225706.0,
+    "delivery_rate": 2588400.0
+  },
+  {
+    "time": "2026-10-07T18:24:55+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 80.0,
+    "ssthresh": 54.0,
+    "bytes_sent": 273546892.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 273524300.0,
+    "delivery_rate": 13586272.0
+  },
+  {
+    "time": "2026-10-07T18:24:56+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 12.0,
+    "bytes_sent": 118059338.0,
+    "bytes_retrans": 523004.0,
+    "bytes_acked": 117517978.0,
+    "delivery_rate": 14495120.0
+  },
+  {
+    "time": "2026-10-07T18:24:56+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 225.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 281635582.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 281525850.0,
+    "delivery_rate": 46581000.0
+  },
+  {
+    "time": "2026-10-07T18:24:56+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 84.0,
+    "ssthresh": 60.0,
+    "bytes_sent": 275462928.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 275347296.0,
+    "delivery_rate": 32727272.0
+  },
+  {
+    "time": "2026-10-07T18:24:57+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 32.0,
+    "ssthresh": 12.0,
+    "bytes_sent": 120798382.0,
+    "bytes_retrans": 528652.0,
+    "bytes_acked": 120225454.0,
+    "delivery_rate": 34532368.0
+  },
+  {
+    "time": "2026-10-07T18:24:57+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 225.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 287222978.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 287084602.0,
+    "delivery_rate": 42834024.0
+  },
+  {
+    "time": "2026-10-07T18:24:57+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 89.0,
+    "ssthresh": 60.0,
+    "bytes_sent": 281011480.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 280901388.0,
+    "delivery_rate": 38532104.0
+  },
+  {
+    "time": "2026-10-07T18:24:58+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 123924286.0,
+    "bytes_retrans": 545596.0,
+    "bytes_acked": 123339154.0,
+    "delivery_rate": 18082872.0
+  },
+  {
+    "time": "2026-10-07T18:24:58+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 318.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 292784062.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 292655486.0,
+    "delivery_rate": 47599248.0
+  },
+  {
+    "time": "2026-10-07T18:24:58+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 94.0,
+    "ssthresh": 60.0,
+    "bytes_sent": 286528188.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 286397376.0,
+    "delivery_rate": 43862704.0
+  },
+  {
+    "time": "2026-10-07T18:24:59+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 9.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 126472466.0,
+    "bytes_retrans": 556892.0,
+    "bytes_acked": 125876170.0,
+    "delivery_rate": 14688112.0
+  },
+  {
+    "time": "2026-10-07T18:24:59+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 326.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 298329854.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 298204586.0,
+    "delivery_rate": 44767456.0
+  },
+  {
+    "time": "2026-10-07T18:24:59+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 96.0,
+    "ssthresh": 60.0,
+    "bytes_sent": 292049488.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 291949236.0,
+    "delivery_rate": 44143472.0
+  },
+  {
+    "time": "2026-10-07T18:25:00+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 14.0,
+    "ssthresh": 13.0,
+    "bytes_sent": 128618890.0,
+    "bytes_retrans": 566652.0,
+    "bytes_acked": 128032470.0,
+    "delivery_rate": 5974064.0
+  },
+  {
+    "time": "2026-10-07T18:25:00+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 326.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 303918386.0,
+    "bytes_retrans": 9884.0,
+    "bytes_acked": 303769246.0,
+    "delivery_rate": 45486176.0
+  },
+  {
+    "time": "2026-10-07T18:25:00+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 99.0,
+    "ssthresh": 60.0,
+    "bytes_sent": 297604900.0,
+    "bytes_retrans": 22592.0,
+    "bytes_acked": 297493572.0,
+    "delivery_rate": 41169184.0
+  },
+  {
+    "time": "2026-10-07T18:25:01+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 14.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 129867710.0,
+    "bytes_retrans": 571140.0,
+    "bytes_acked": 129266666.0,
+    "delivery_rate": 1424256.0
+  },
+  {
+    "time": "2026-10-07T18:25:01+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 1.0,
+    "ssthresh": 228.0,
+    "bytes_sent": 306093990.0,
+    "bytes_retrans": 12708.0,
+    "bytes_acked": 305873826.0,
+    "delivery_rate": 41349600.0
+  },
+  {
+    "time": "2026-10-07T18:25:01+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 99.0,
+    "ssthresh": 73.0,
+    "bytes_sent": 300923596.0,
+    "bytes_retrans": 26828.0,
+    "bytes_acked": 300804988.0,
+    "delivery_rate": 38674736.0
+  },
+  {
+    "time": "2026-10-07T18:25:02+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 25.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 131587398.0,
+    "bytes_retrans": 575376.0,
+    "bytes_acked": 130978154.0,
+    "delivery_rate": 27855336.0
+  },
+  {
+    "time": "2026-10-07T18:25:02+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 333.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 307266850.0,
+    "bytes_retrans": 14120.0,
+    "bytes_acked": 307146490.0,
+    "delivery_rate": 51979160.0
+  },
+  {
+    "time": "2026-10-07T18:25:02+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 101.0,
+    "ssthresh": 75.0,
+    "bytes_sent": 306209816.0,
+    "bytes_retrans": 31064.0,
+    "bytes_acked": 306069892.0,
+    "delivery_rate": 39615312.0
+  },
+  {
+    "time": "2026-10-07T18:25:03+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 17.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 133900406.0,
+    "bytes_retrans": 582436.0,
+    "bytes_acked": 133294646.0,
+    "delivery_rate": 20549840.0
+  },
+  {
+    "time": "2026-10-07T18:25:03+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 351.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 312714410.0,
+    "bytes_retrans": 14120.0,
+    "bytes_acked": 312594390.0,
+    "delivery_rate": 39266080.0
+  },
+  {
+    "time": "2026-10-07T18:25:03+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 102.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 310332504.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 310209156.0,
+    "delivery_rate": 43048848.0
+  },
+  {
+    "time": "2026-10-07T18:25:04+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 11.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 135623870.0,
+    "bytes_retrans": 592320.0,
+    "bytes_acked": 135016018.0,
+    "delivery_rate": 10935448.0
+  },
+  {
+    "time": "2026-10-07T18:25:04+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 430.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 318251562.0,
+    "bytes_retrans": 14120.0,
+    "bytes_acked": 318083346.0,
+    "delivery_rate": 45156504.0
+  },
+  {
+    "time": "2026-10-07T18:25:04+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 103.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 315137520.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 315015508.0,
+    "delivery_rate": 41372480.0
+  },
+  {
+    "time": "2026-10-07T18:25:05+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 16.0,
+    "ssthresh": 16.0,
+    "bytes_sent": 136144990.0,
+    "bytes_retrans": 592320.0,
+    "bytes_acked": 135552670.0,
+    "delivery_rate": 9640160.0
+  },
+  {
+    "time": "2026-10-07T18:25:05+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 1.0,
+    "ssthresh": 301.0,
+    "bytes_sent": 319814630.0,
+    "bytes_retrans": 15532.0,
+    "bytes_acked": 319197318.0,
+    "delivery_rate": 43786480.0
+  },
+  {
+    "time": "2026-10-07T18:25:05+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 12.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 316751544.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 316719068.0,
+    "delivery_rate": 11362024.0
+  },
+  {
+    "time": "2026-10-07T18:25:06+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 14.0,
+    "ssthresh": 14.0,
+    "bytes_sent": 137382226.0,
+    "bytes_retrans": 597968.0,
+    "bytes_acked": 136764490.0,
+    "delivery_rate": 16294200.0
+  },
+  {
+    "time": "2026-10-07T18:25:06+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 1.0,
+    "ssthresh": 301.0,
+    "bytes_sent": 319816042.0,
+    "bytes_retrans": 16944.0,
+    "bytes_acked": 319197318.0,
+    "delivery_rate": 43786480.0
+  },
+  {
+    "time": "2026-10-07T18:25:06+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 106.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 319501328.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 319328056.0,
+    "delivery_rate": 43783520.0
+  },
+  {
+    "time": "2026-10-07T18:25:07+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 19.0,
+    "ssthresh": 15.0,
+    "bytes_sent": 139348718.0,
+    "bytes_retrans": 610676.0,
+    "bytes_acked": 138712534.0,
+    "delivery_rate": 20623416.0
+  },
+  {
+    "time": "2026-10-07T18:25:07+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 451.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 324039966.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 323843662.0,
+    "delivery_rate": 29632672.0
+  },
+  {
+    "time": "2026-10-07T18:25:07+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 114.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 325042180.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 324894168.0,
+    "delivery_rate": 45236512.0
+  },
+  {
+    "time": "2026-10-07T18:25:08+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 15.0,
+    "ssthresh": 9.0,
+    "bytes_sent": 141471610.0,
+    "bytes_retrans": 621972.0,
+    "bytes_acked": 140824222.0,
+    "delivery_rate": 16187888.0
+  },
+  {
+    "time": "2026-10-07T18:25:08+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 451.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 329596842.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 329434182.0,
+    "delivery_rate": 45562024.0
+  },
+  {
+    "time": "2026-10-07T18:25:08+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 114.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 330596728.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 330460628.0,
+    "delivery_rate": 42631344.0
+  },
+  {
+    "time": "2026-10-07T18:25:09+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 13.0,
+    "ssthresh": 11.0,
+    "bytes_sent": 143410446.0,
+    "bytes_retrans": 634680.0,
+    "bytes_acked": 142759042.0,
+    "delivery_rate": 14536272.0
+  },
+  {
+    "time": "2026-10-07T18:25:09+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 451.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 335124778.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 334987814.0,
+    "delivery_rate": 49657312.0
+  },
+  {
+    "time": "2026-10-07T18:25:09+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 140.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 336157324.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 336028796.0,
+    "delivery_rate": 45132216.0
+  },
+  {
+    "time": "2026-10-07T18:25:10+08:00",
+    "peer": "110.64.88.149:43969",
+    "cwnd": 18.0,
+    "ssthresh": 18.0,
+    "bytes_sent": 146147146.0,
+    "bytes_retrans": 644564.0,
+    "bytes_acked": 145477166.0,
+    "delivery_rate": 19698248.0
+  },
+  {
+    "time": "2026-10-07T18:25:10+08:00",
+    "peer": "221.4.34.127:30921",
+    "cwnd": 451.0,
+    "ssthresh": 326.0,
+    "bytes_sent": 340723814.0,
+    "bytes_retrans": 18356.0,
+    "bytes_acked": 340532078.0,
+    "delivery_rate": 37364352.0
+  },
+  {
+    "time": "2026-10-07T18:25:10+08:00",
+    "peer": "221.4.34.108:53677",
+    "cwnd": 140.0,
+    "ssthresh": 76.0,
+    "bytes_sent": 341729120.0,
+    "bytes_retrans": 32476.0,
+    "bytes_acked": 341584340.0,
+    "delivery_rate": 41197720.0
+  }
+]

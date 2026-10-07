@@ -1,0 +1,9 @@
+{
+  "cap_bytes": 13000000000,
+  "prior_conservative_bytes": 7839569206,
+  "previous_vps_nic_bytes": 5957184862,
+  "current_vps_nic_bytes": 9302697815,
+  "new_mac_direct_payload_bytes": 1158123960,
+  "new_direct_and_small_probe_overhead_reserve_bytes": 60000000,
+  "conservative_total_bytes": 12403206119
+}

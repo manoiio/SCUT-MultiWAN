@@ -70,7 +70,7 @@ wan_up() {
     WAN="$(radio_wan "$1")"
 
     ifstatus "$WAN" 2>/dev/null |
-        grep -q '"up": true'
+        grep -q '"up":[[:space:]]*true'
 
 }
 
@@ -318,17 +318,27 @@ enable_candidate() {
     
     ifup "$WAN" >/dev/null 2>&1
     
+    local candidate_rc candidate_end
+    candidate_rc=0
+    candidate_end=$(( $(mw_uptime) + 45 ))
     I=0
-    
-    while [ "$I" -lt 25 ]; do
+    while [ "$I" -lt 25 ] && [ "$(mw_uptime)" -lt "$candidate_end" ]; do
+        mw_require_scan 15 || return $?
         if connected "$RADIO" && wan_up "$RADIO"; then
     
             DEV="$(radio_dev "$RADIO")"
     
-            /usr/bin/fix-qca-sta-rate "$DEV" \
-                >/dev/null 2>&1 || return $?
-    
-            log "$RADIO association and DHCP ready"
+            /usr/bin/fix-qca-sta-rate "$DEV" >/dev/null 2>&1
+            candidate_rc=$?
+            case "$candidate_rc" in
+                0) ;;
+                75)
+                    log "$RADIO rate maintenance deferred (lock or association changed); retrying candidate"
+                    I=$((I+1)); sleep 1; continue;;
+                *) log "$RADIO rate maintenance failed rc=$candidate_rc"; return "$candidate_rc";;
+            esac
+            connected "$RADIO" && wan_up "$RADIO" || { I=$((I+1)); sleep 1; continue; }
+            log "$RADIO association, DHCP and rate checks ready"
     
             return 0
         fi
@@ -337,7 +347,7 @@ enable_candidate() {
         sleep 1
     done
     
-    log "$RADIO association/DHCP timeout"
+    log "$RADIO candidate readiness timeout; last rate rc=$candidate_rc"
     
     return 1
 
@@ -455,6 +465,29 @@ finish_switch() {
 # 4. NEW 认证失败则重新认证 OLD。
 
 #
+release_old_native() {
+    local olddev oldip oldowner rc backup
+    olddev="$1"
+    mw_session_read native || return 75
+    oldip="$MW_SESSION_IP"; oldowner="$MW_SESSION_DEV"
+    [ "$oldip" != none ] || return 0
+    [ "$oldowner" = "$olddev" ] || return 75
+    /usr/bin/campus-portal-logout "$olddev" "$oldip" && return 0
+    rc=$?
+    # Releasing the same exact recorded IP is idempotent. A broken old data
+    # path must not block confirmation through a healthy USB wireless path.
+    mw_require_scan 25 || return $?
+    backup=phy3-sta0
+    if mw_online "$backup" 6; then
+        mw_session_read native || return 75
+        [ "$MW_SESSION_IP" = "$oldip" ] && [ "$MW_SESSION_DEV" = "$oldowner" ] || return 75
+        log "Old Native release unconfirmed via $olddev; confirming exact recorded IP via USB"
+        /usr/bin/campus-portal-logout "$backup" "$oldip" && return 0
+        rc=$?
+    fi
+    return "$rc"
+}
+
 portal_safe_switch() {
     OLD="$1"
     NEW="$2"
@@ -467,7 +500,7 @@ portal_safe_switch() {
     log "Preparing candidate $NEW while keeping $OLD associated"
     
     if ! enable_candidate "$NEW"; then
-        log "$NEW association/DHCP failed; keeping $OLD"
+        log "$NEW candidate preparation failed; keeping $OLD"
     
         disable_radio "$NEW" || return $?
     
@@ -487,7 +520,7 @@ portal_safe_switch() {
         #
         if :; then
     
-            if /usr/bin/campus-portal-logout "$OLDDEV"; then
+            if release_old_native "$OLDDEV"; then
                 log "$OLD Portal session released"
             else
                 log "Unable to confirm old session release; aborting switch"
@@ -516,7 +549,7 @@ portal_safe_switch() {
     
         log "Releasing $OLD Portal session before logging in $NEW"
     
-        if ! /usr/bin/campus-portal-logout "$OLDDEV"; then
+        if ! release_old_native "$OLDDEV"; then
     
             log "Unable to safely release $OLD Portal session; aborting switch"
     
@@ -893,4 +926,12 @@ case "$1" in
     apply|auto) apply_best;;
     switch) force_switch "$2";;
 esac
-exit $?
+BEST_RC=$?
+if [ "$BEST_RC" = 0 ]; then
+    # A verified recovery must not leave the watchdog's earlier failure backoff
+    # latched. Only an actual survey advances the periodic survey timestamp.
+    mkdir -p /tmp/native-watchdog
+    rm -f /tmp/native-watchdog/retry_scan /tmp/native-watchdog/scan_failures
+    case "$1" in apply|auto) mw_uptime > /tmp/native-watchdog/last_scan;; esac
+fi
+exit "$BEST_RC"

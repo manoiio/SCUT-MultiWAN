@@ -104,6 +104,37 @@ internet_confirm() {
 #   neverssl 被重定向至 s.scut.edu.cn
 
 #
+recover_dhcp_path() {
+    local gw stamp now inherited rc
+    gw="$(ip -4 route show dev "$DEV" | awk '$1=="default" {print $3;exit}')"
+    mw_ipv4 "$gw" || return 1
+    # Ordinary Internet failure is insufficient: require an unreachable LAN
+    # gateway twice, preserve all session evidence, and throttle DHCP recovery.
+    ping -I "$DEV" -c 1 -W 1 "$gw" >/dev/null 2>&1 && return 1
+    ping -I "$DEV" -c 1 -W 1 "$gw" >/dev/null 2>&1 && return 1
+    now="$(mw_uptime)"; stamp=0
+    read -r stamp < "$STATE_DIR/dhcp.$RADIO" 2>/dev/null || stamp=0
+    case "$stamp" in ''|*[!0-9]*) stamp=0;; esac
+    [ "$stamp" -le "$now" ] && [ $((now-stamp)) -lt 300 ] && return 75
+    mw_require_scan 40 || return $?
+    exec 6>>/tmp/scut-multiwan-locks/native-best || return 1
+    flock -n 6 || { exec 6>&-; return 75; }
+    inherited=0
+    [ "$(readlink /proc/self/fd/9 2>/dev/null)" != /tmp/scut-multiwan-locks/portal ] || inherited=1
+    if ! mw_portal_lock 5; then exec 6>&-; return 75; fi
+    printf '%s\n' "$now" > "$STATE_DIR/dhcp.$RADIO"
+    log "$RADIO unreachable gateway; reacquiring DHCP with session journal preserved"
+    ifdown "$(radio_wan "$RADIO")" >/dev/null 2>&1
+    ifup "$(radio_wan "$RADIO")" >/dev/null 2>&1
+    sleep 10
+    rc=0
+    mw_require_scan 10 || rc=$?
+    if [ "$inherited" = 0 ]; then flock -u 9; exec 9>&-; fi
+    exec 6>&-
+    [ "$rc" = 0 ] || return "$rc"
+    internet_confirm "$RADIO"
+}
+
 portal_required() {
     mw_require_active 10 || return $?
     RADIO="$1"
@@ -177,6 +208,10 @@ maintain_rate() {
         return 0
     fi
 
+    if [ "$RATE_RC" = 75 ]; then
+        log "$RADIO rate maintenance deferred by lock/association guard"
+        return 75
+    fi
     log "$RADIO failed to refresh fixed TX rate rc=$RATE_RC"
     return "$RATE_RC"
 }
@@ -328,7 +363,7 @@ maintain_rate "$RADIO" || true
 # 先判断公网。
 
 #
-if internet_confirm "$RADIO"; then
+if internet_confirm "$RADIO" || recover_dhcp_path; then
 
     rm -f "$STATE_DIR/offline.$RADIO"
 

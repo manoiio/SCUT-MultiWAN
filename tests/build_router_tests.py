@@ -51,6 +51,13 @@ wd=(out/'usr/bin/native-watchdog').read_text().replace(remote+'/usr/bin/native-b
 mock = r'''#!/bin/sh
 name="${0##*/}"
 case "$name" in
+ awk)
+   # Historical fixtures subtract up to 900s. Preserve clock progression,
+   # while allowing this isolated suite to run immediately after a reboot.
+   if [ "$#" = 2 ] && [ "$2" = /proc/uptime ] && [ "$1" = '{print int($1)}' ]; then
+     exec /usr/bin/awk '{print int($1)+10000}' "$2"
+   fi
+   exec /usr/bin/awk "$@";;
  date) case "$1" in '+%Y-%m-%d %u %H %M %S') echo "${TEST_DATE:-2026-10-08} ${TEST_WEEKDAY:-4} ${TEST_CLOCK:-20 00 00}";; '+%H %M %S') echo "${TEST_CLOCK:-20 00 00}";; +%s) echo "${TEST_EPOCH:-1791432000}";; -d) echo "$2";; *) echo 'test clock';; esac; exit 0;;
  sleep)
    if [ "$1" -ge 20 ] || { [ "${TEST_LEGACY:-0}" = 1 ] && [ "$1" = 2 ]; }; then /bin/sleep 1; fi
@@ -68,7 +75,8 @@ case "$name" in
  native-best-fixture) echo "native-best-fixture" >> "$TEST_ROOT/trace"; exit "${TEST_BEST_RC:-0}";;
  uci) echo "uci $*" >> "$TEST_ROOT/trace"; exit 0;;
  wifi) echo "wifi $*" >> "$TEST_ROOT/trace"; [ "$1" = up ] && touch "$TEST_ROOT/$2-enabled"; [ "$1" = down ] && rm -f "$TEST_ROOT/$2-enabled"; exit 0;;
- ifup|ifdown|sysctl) echo "$name $*" >> "$TEST_ROOT/trace"; exit 0;;
+ ifup) [ "${TEST_DHCP_RECOVERY:-0}" != 1 ] || touch "$TEST_ROOT/dhcp-restored"; echo "ifup $*" >> "$TEST_ROOT/trace"; exit 0;;
+ ifdown|sysctl) echo "$name $*" >> "$TEST_ROOT/trace"; exit 0;;
  ping)
    echo "ping" >> "$TEST_ROOT/trace"
    count="$(cat "$TEST_ROOT/ping-count" 2>/dev/null)"; count="${count:-0}"; count=$((count+1)); echo "$count" > "$TEST_ROOT/ping-count"
@@ -115,7 +123,9 @@ case "$name" in
         exit 0
       fi
       echo "SCAN $dev" >> "$TEST_ROOT/trace"; [ "${TEST_SCAN_EMPTY:-}" = "$dev" ] && exit 0; printf 'BSS 00:11:22:33:44:55\n freq: 5180\n signal: -39\n SSID: scut-student\n';;
-    set) echo "RATE $dev $*" >> "$TEST_ROOT/trace"; case "$*" in *2:7*) [ "${TEST_ROLLBACK_RATE_FAIL:-0}" = 1 ] && exit 1;; esac; exit "${TEST_RATE_FAIL:-0}";;
+    set)
+      if [ "${TEST_RATE_DEFER_ONCE:-0}" = 1 ] && [ "$dev" = phy2-sta0 ] && [ ! -f "$TEST_ROOT/rate-deferred" ]; then touch "$TEST_ROOT/rate-deferred"; exit 75; fi
+      echo "RATE $dev $*" >> "$TEST_ROOT/trace"; case "$*" in *2:7*) [ "${TEST_ROLLBACK_RATE_FAIL:-0}" = 1 ] && exit 1;; esac; exit "${TEST_RATE_FAIL:-0}";;
     *) echo "iw $*" >> "$TEST_ROOT/trace";;
    esac; exit $?;;
  ip)
@@ -164,6 +174,7 @@ case "$name" in
       printf '%s' "$url"; exit 0;;
     *neverssl*) printf '%s' "${TEST_REDIRECT-https://s.scut.edu.cn/a79.htm?wlanacip=10.0.0.1}";;
     *'/portal/mac/unbind')
+      [ "${TEST_LOGOUT_DEVICE_FAIL:-}" != "$dev" ] || exit 7
       [ "$cap" = 1048576 ] || exit 98
       echo "LOGOUT $dev $target" >> "$TEST_ROOT/trace"
       if [ -n "${TEST_PORTAL_LOGOUT_BODY:-}" ]; then
@@ -202,6 +213,7 @@ case "$name" in
         phy3-sta0) online="${TEST_USB_ONLINE:-1}";;
         wan) online="${TEST_WIRED_ONLINE:-0}";;
       esac
+      [ -f "$TEST_ROOT/dhcp-restored" ] && [ "$dev" = phy0-sta0 ] && online=1
       [ -f "$TEST_ROOT/$dev-offline" ] && online=0
       [ -f "$TEST_ROOT/$dev-login" ] && online="${TEST_AFTER_LOGIN_ONLINE:-1}"
       [ "$online" = 1 ] || { printf 000; exit 28; }
@@ -213,7 +225,7 @@ exit 1
 '''
 (out/'bin/mock').write_text(mock)
 (out/'bin/mock').chmod(0o755)
-for name in ['date','sleep','logger','readlink','scutclient-wired','timeout','native-best-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
+for name in ['awk','date','sleep','logger','readlink','scutclient-wired','timeout','native-best-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
     (out/'bin'/name).symlink_to('mock')
 (out/'usr/bin/scutclient-wired').symlink_to('../../bin/mock')
 runner=r'''#!/bin/sh
@@ -226,6 +238,8 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
+ unset TEST_RATE_DEFER_ONCE TEST_LOGOUT_DEVICE_FAIL TEST_DHCP_RECOVERY
+ rm -f "$TEST_ROOT/rate-deferred" "$TEST_ROOT/dhcp-restored" "$TEST_ROOT/tmp/native-watchdog"/dhcp.*
  unset TEST_LEGACY TEST_REASSOC_FAIL TEST_REASSOC_STUCK TEST_REASSOC_IP_CHANGE TEST_CACHE_AGE TEST_CACHE_HT TEST_CACHE_BSSID
  rm -rf "$TEST_ROOT/tmp/scut-link-recover"
  rm -f "$TEST_ROOT"/reassociated-* "$TEST_ROOT"/changed-ip-* "$TEST_ROOT/tmp/qca-fixed-rate"/*.legacy
@@ -424,7 +438,7 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\n' + (root/'tests/legacy-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\n' + (root/'tests/legacy-cases.sh').read_text() + '\n' + (root/'tests/recovery-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

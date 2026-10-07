@@ -1,0 +1,27 @@
+[Unit]
+Description=SCUT authenticated TLS MPTCP egress proxy
+After=network-online.target scut-bond-queue.service
+Wants=network-online.target
+Requires=scut-bond-queue.service
+
+[Service]
+User=scutbond
+Group=scutbond
+ExecStart=/usr/local/bin/scut-bond -config /etc/scut-bond/server.json
+Restart=on-failure
+RestartSec=5
+Environment=GOMEMLIMIT=64MiB
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=256
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

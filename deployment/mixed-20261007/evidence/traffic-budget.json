@@ -1,0 +1,12 @@
+{
+  "cap_bytes": 37000000000,
+  "cumulative_bytes": 36496249091,
+  "remaining_bytes": 503750909,
+  "vps_rx_bytes": 11693728073,
+  "vps_tx_bytes": 20778221688,
+  "previous_cumulative_bytes": 16023928689,
+  "previous_vps_total_bytes": 12099629359,
+  "extra_reserve_bytes": 100000000,
+  "observed_at": "2026-10-07T16:34:23+08:00",
+  "method": "CDN receive plus forwarded bytes counted by NIC; no additional payload count"
+}

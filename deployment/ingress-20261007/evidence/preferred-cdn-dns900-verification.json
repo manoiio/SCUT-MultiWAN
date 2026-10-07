@@ -1,0 +1,24 @@
+{
+  "actual_cdn_ipv4": "39.173.161.17",
+  "cdn_socket_samples": 113,
+  "cdn_recvq_nonzero_samples": 112,
+  "cdn_recvq_max_bytes": 5228492,
+  "bbr_subflow_peer_samples": {
+    "221.4.34.108:62084": 114,
+    "110.64.88.149:54559": 114,
+    "221.4.34.127:31109": 114
+  },
+  "mptcp_three_subflow_samples": 113,
+  "formal_test_start": "2026-10-07T19:46:49+08:00",
+  "formal_end_approx": "2026-10-07T19:47:48+08:00",
+  "original_guard_rolled_back_at": "2026-10-07T19:50:40+08:00",
+  "accepted_candidate_reapplied_at": "2026-10-07T19:53:30+08:00",
+  "deployment_confirmed_at": "2026-10-07T19:53:32+08:00",
+  "binary_sha256": "7427364d244e6bf761c9d112c6392413a319eb754b0d6fe2d31f0b8ef3214209",
+  "queue_sha256": "4fd59c348cf9aa0f9ac9979d65ae531fb6e66c3c0fcc11443b694d670f2285f1",
+  "production_exit": "new VPS / 联通专线",
+  "rollback_timer_inactive": true,
+  "router_boot_id": "1e642942-ec2c-4fc7-84e2-302aa6be4648",
+  "router_wired_engine_pid": 9646,
+  "post_reapply_1k_sha256": "e4f63a0771862b2ae72bb0f7ccd90da4cd5d0684e2c2f25fa4d4e35dad320a1a"
+}

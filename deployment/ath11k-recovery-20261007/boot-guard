@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+# Restore original modules before boot's kmodloader after an unconfirmed crash.
+START=08
+B=/root/scut-ath11k-backup-20261007
+boot() {
+    exec 6>>"$B/guard.lock" || return 1
+    flock -n 6 || return 75
+    state=$(cat "$B/state" 2>/dev/null || :)
+    case "$state" in
+        allowed)
+            cat /proc/sys/kernel/random/boot_id > "$B/testing-boot"
+            echo testing > "$B/state.new" && mv "$B/state.new" "$B/state"
+            (exec 6>&-; trap '' HUP; exec /bin/sh "$B/timeout.sh") </dev/null > "$B/timeout.log" 2>&1 &
+            p=$!
+            echo "$p" > "$B/guard.pid"
+            awk '{print $22}' /proc/$p/stat > "$B/guard.start"
+            ;;
+        testing)
+            /bin/sh "$B/rollback.sh" || return 1
+            ;;
+    esac
+}
+start() { boot; }

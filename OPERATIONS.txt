@@ -1160,3 +1160,750 @@ contents printed/downloaded. Production candidate hashes matched and manual
 rollback syntax valid. Natural faulty-association retry/long-term behaviour
 not induced; final failure paths verified in isolation. README, recovery doc
 and operations updated. No commit/push; existing changes retained.
+
+
+Bounded VPS and single-connection bonding tests — 2026-10-06 GMT+8
+
+User provided a VPS and authorized tests, then expanded TOTAL traffic budget
+to3GB. No SSH password or temporary tunnel/HTTP token recorded here. Tests
+ran23:17–23:36; actual VPS interface TX+RX increase984702864 bytes (~0.985GB),
+with only small additional official-binary downloads on Mac. Budget not spent
+merely to exhaust it. User-reported VPS egress200Mbps precludes300Mbps via that
+relay if the limit applies; provider enforcement itself was not verified.
+
+VPS Debian12/KVM/4vCPU/4GB/Linux6.1 has MPTCP enabled and TUN. All nine bound
+UDP echoes passed (~23–26ms). Longer96MiB direct samples: Native50.35Mbps,
+USB48.84Mbps, wired8.35Mbps incomplete at40s. Three simultaneous96MiB samples
+then completed, whole-run aggregate139.65Mbps. Both wireless links share AP.
+This parallel baseline is not a single-stream bonding result.
+
+Temporary official Glorytun0.3.3 binaries in/tmp, ChaCha20-Poly1305, MTU1400,
+three paths each RX48/TX10Mbps. CUBIC single TCP over three-path tunnel only
+13.06Mbps (40s cutoff); Native-only tunnel37.17Mbps. Loading tcp_bbr on VPS
+and selecting BBR solely on the test socket gave82.30Mbps over64MiB/6.52s,
+with material RX on ALL three WANs. Mac via temporary SSH local forwarding
+and that tunnel gave58.32Mbps/64MiB, including SSH overhead. Neither sample
+establishes sustained maximum or115 CDN performance; no valid115 link tested.
+BBR improvement does not isolate exact loss/reordering/queue/AP/provider cause.
+
+Router-only before-state manifests/package/rules kept in
+/root/scut-vps-test-backup-20261006 (700). Installed matched kmod-tun only for
+test, then unloaded/deinstalled; package list restored byte-for-byte. Added
+only router-WAN-source-to-VPS rules pref80–82/table201–203; cleanup guard
+removed them. Existing LAN pref103 iif br-lan/table103 never replaced, no
+LAN tunnel routing or NAT, no campus login/logout/radio action/quota edits.
+
+All test listeners/tunnels removed, remote binaries/scripts/keys deleted,
+Mac SSH forwarding cancelled; VPS only SSH22 remains, nft rules still empty,
+BBR module unloaded and default cubic preserved. Eight router config/session
+hashes pass; three healthy table103 next hops remain1:1:1.23:36:42 all three
+bound public HTTPS200 (~198/163/135ms). No production bonding retained,
+commit/push or115 acceptance. Detailed methods, failures and limitations:
+docs/vps-bonding-test-20261006.md.
+
+
+MPTCP follow-up after slow UDP bonding — 2026-10-06 GMT+8
+
+User challenged82Mbps result as below VPS200Mbps capacity. Kept SAME3GB total
+budget, previous local dirty test docs and all production state.23:43–23:57
+read-only discovery: router MPTCP already enabled, full iproute2 support,
+empty endpoints, two extra subflows permitted. Original UDP-first choice did
+not first check router MPTCP capability. No flashing/kernel/package install.
+
+Temporary bounded C receiver / single-use LAN transfer and Python MPTCP
+server, synthetic data only. Reused router-source-to-VPS-only pref80–82 and
+tables201–203. Added USB/wired subflow IDs201/202, default Native initial.
+INFO additional2/remote-key flags plus VPS ss confirm THREE actual TCP
+subflows. Initial receiver total-field offset printed0 incorrectly; fixed
+later and LAN transfer reported actual total3. No TCP fallback implied by0.
+
+Native plain TCP CUBIC64MiB51.98Mbps. MPTCP CUBIC256MiB57.82Mbps; changing
+ONLY test sending socket congestion toBBR gave256MiB131.04Mbps/16.39s.
+Same-WAN two TCP streams (each32MiB) aggregate Native48.63/USB47.43/wired
+17.38Mbps; wired streams unequal46.21/8.69Mbps. Cannot establish permanent
+50Mbps account cap; actual current target/path capacity remains unproven300.
+
+Mac en0 direct LAN to fixed-destination one-shot transfer, no SSH, initially
+256MiB46.28Mbps. Test-only VPS forced send buffer4MiB, router forced MPTCP
+receive buffer4MiB (Linux accounts doubled), LAN TCP_NODELAY, Mac recv1MiB
+and explicit en0 IPv4 binding then gave128MiB116.93Mbps/9.18s. No global
+buffer/sysctl/Mac proxy changes. Combined knobs not isolated individually;
+network variance and TCP retransmission/reordering observed, especially wired.
+Recommend MPTCP TCP encrypted proxy + VPS BBR as next implementation route,
+not retaining temporary raw transfer as a production service.115 CDN URL,
+encryption overhead, full target throughput and long-term acceptance not done.
+
+Removed ALL test endpoints/rules/routes/listeners/files. Endpoint lists empty,
+limits original0 accepted/2 extra; default cubic and available reno/cubic
+restored after BBR unload. VPS only SSH22; nftables unchanged. Eight router
+config/session checksums and original package list pass; table103 and iif
+br-lan retain three1:1:1 next hops. Final three HTTPS200 ~311/336/279ms.
+No campus auth/logout/radio/session/quota action, persistent proxy deployment,
+commit or push. FINAL VPS TX/RX2198717128/63532474 bytes; since initial baseline
+TOTAL increase2262210978 bytes (~2.262GB), inside original3GB limit, not a
+reset budget. Small Mac binary downloads still leave substantial margin.
+Detailed samples, failed assumptions and future plan in same test document.
+
+Three-path MPTCP pacing follow-up — 2026-10-07 00:03–00:14 GMT+8
+
+User raised SAME cumulative traffic budget from3GB to5GB. Preserved earlier
+dirty records and production configuration. Three WANs online, both WiFi
+same AP; VPS original mq/fq_codel, MTU1450, default CUBIC. Test-only source
+rules/tables80–82/201–203 and USB/wired MPTCP endpoints201/202, no auth/radio.
+Bounded synthetic payload servers: initial2GiB cap/20min, then final256MiB
+cap/3min after checking remaining NIC budget. Receiver55s/LAN transfer60s.
+
+Plain BBR64MiB each: Native50.245/USB48.645/wired50.515Mbps. Simultaneous
+128MiB per WAN:48.576/48.640/48.262, elapsed22.25s, aggregate144.8Mbps.
+Router MPTCP256MiB receive-force4MiB119.838Mbps;8MiB100.100Mbps. Dual WiFi
+128MiB/8MiB67.334Mbps. Keep three paths and4MiB test socket parameters.
+Mac single LAN connection, original VPS queue:128MiB100.378Mbps and256MiB
+112.140Mbps. BBR snapshots showed oversized bandwidth estimates and TCP
+retransmission/reordering, without locating a provider/account fixed cap.
+
+Temporary VPS root FQ maxrate50mbit quantum1464 initial_quantum1464 gave
+Mac256MiB130.881Mbps/16.408s; repeat256MiB125.293Mbps/17.140s.64MiB short
+repeat107.944Mbps. Maxrate is PER TCP FLOW; three MPTCP subflows aggregate,
+not50Mbps for the whole tunnel. Mid-transfer snapshots showed only1370B
+USB retransmission, zero displayed on other two flows, for~174MB combined
+bytes_sent. FQ queue drops0. Reordering still observed. FQ32gbit (effectively
+uncapped for this VPS)128MiB76.584Mbps. Short/time-varying samples don't
+prove stable130Mbps or isolate every knob; support pacing as useful next step.
+First mq child replace and maxrate unlimited commands failed without effect;
+samples after those failures correctly remain baseline112.14 / capped107.94.
+
+Recommend MPTCP encrypted TCP proxy + tested BBR/socket buffers and pacing
+matched to actual WAN capacity; production should classify only proxy egress,
+not blindly apply whole-interface test maxrate. Current path parallel~145M,
+Mac single large samples125–131M;200M/300M not demonstrated.115 CDN ingress,
+signed-URL egress restrictions, encryption and long-term runtime untested.
+
+Cleanup00:14:09–10: stopped test services/guards; deleted remote test programs,
+tokens/files/endpoints/rules/routes. VPS original mq+four fq_codel restored
+byte-for-byte against saved qdisc text; temporary BBR/FQ modules unloaded,
+default cubic / available reno cubic, nft empty and only SSH22 listener.
+Router original8 config/session SHA checks and package list pass; limits0/2,
+pref103 iif br-lan with healthy1:1:1 preserved. Bound WAN HTTPS200 all three,
+232/250/201ms. No auth/logout/radio/quota/persistent proxy deployment action.
+Final NIC TX/RX4776438614/122718061; minus initial38624 gives cumulative
+4899118051bytes (~4.899GB), plus earlier fewMB Mac binaries, inside5GB.
+Stopped further payload tests. Updated same detailed doc, no commit/push.
+
+Shared-WAN sustained-rate hypothesis — 2026-10-07 00:46–01:07 GMT+8
+
+User observed single-WAN burst10MB/s -> sustained6MB/s, three-WAN burst26MB/s
+-> sustained18MB/s, then added3GB to prior5GB: SAME cumulative8GB budget.
+User later confirmed no other heavy downloads/video tasks during these tests.
+Preserved dirty prior records. Baselines rechecked before transient routing.
+
+Staggered plain BBR TCP per WAN: A128MiB, B64MiB starts after8s. Half-second
+receive bins use SAME router monotonic clock, exclude partial boundaries.
+Native pre-B A46.389Mbps; overlap A21.354+B25.205=46.559; post-B A46.203.
+USB pre-B46.692; overlap21.225+24.885=46.111; post-B50.243. Cold half-second
+peaks92.99/84.91Mbps. New TCP did not add another sustained50Mbps allocation.
+Supports shared per-WAN/session/IP/path capacity; not proof of exact campus
+policer configuration or which device, as controlled TCP pair target sameVPS.
+Normalized trace SVG/CSV in docs/assets/wan-shared-rate-20261007.*.
+
+Bounded Cloudflare64MiB tests: Native IPv4 incomplete45.38MB/25s=14.520Mbps;
+wired IPv4 complete46.693Mbps/11.498s; wired IPv6 complete72.556Mbps/7.399s.
+Both wired terminate HKG but different IP/protocol/path; no general unlimited
+IPv6 claim. Wired already has globalIPv6; wireless and VPS have no globalIPv6.
+No IPv6 mutation. Counted external test WAN RX separately from VPS NIC.
+
+FQ per-flow50 tests: Mac BBR256MiB121.523Mbps with stalls; CUBIC256MiB
+131.945Mbps with~139–141Mbps normal segments. Two MPTCP64MiB streams together
+~127.6Mbps/8.42s, uneven completion. Then HTB matches test-service sport35449
+plus three NAT destinations, per-WAN shared51Mbps class, FQ51 child, burst/
+cburst16/8KiB. Mac BBR512MiB117.124Mbps with periodic stalls; SAME queue/load
+CUBIC512MiB106.888Mbps, long startup stall then~140–143Mbps normal segments.
+Last FQ50/CUBIC384MiB blocking-send+SO_SNDTIMEO=100.523Mbps, no improvement.
+All payloads complete, actual3MPTCP subflows. Low sampled retransmission and
+zero local queue drops do not exclude MPTCP reassembly/transport stalls.
+New knobs did NOT consistently beat prior125–131Mbps whole-transfer best;
+don't claim CUBIC/HTB/blocking as proven lasting improvement. Kernel/app send
+interface/scheduling still unresolved. VPS6.1.37, local APT cache only installed
+candidate; no kernel/repo update or reboot. Modern dual-stack controlled peer
+is next comparison direction, not guaranteed fix. Idle7s RX background low;
+not full-run background trace, user confirmed no other heavy workloads.
+
+Cleanup01:07:01–03: removed all temporary routes/endpoints/guards/services/files
+and py_compile caches. Original VPS mq/fq_codel exact textual comparison pass,
+temporary BBR/FQ/HTB/u32 modules unloaded; defaultcubic, available reno/cubic,
+nftempty, onlySSH22. Router8config/session hashes+packages pass; limits0/2,
+pref103 iif br-lan and table103three1:1:1 retained. ThreeboundHTTPS200253/212/
+247ms. No auth/logout/radio/IPv6/quota/persistent deployment/commit/push.
+Final VPS TX/RX7448653109/182298509 minus baseline38624=7630912994B. External
+Cloudflare RX48988487+70636666+71700106=191325259B. Observable cumulative
+7822238253B (~7.822GB), plus earlier fewMB Mac binaries/management, inside8GB.
+Stopped payload tests. Full interpretation and limits appended to same doc.
+
+Temporary LAN wired-only egress — 2026-10-07 02:44 GMT+8
+
+User requested temporary wan-only egress until sending “恢复”. Before-state
+was table103 three next hops Native10.195.63.254/phy0-sta0,
+USB10.195.95.254/phy3-sta0, wired110.64.88.254/wan, all weight1.
+Saved table/rules and syntax-checked hold/restore scripts on router only in
+/root/scut-single-wan-20261007-0241 (700). Background hold process owns actual
+dualwan-refresh flock to prevent cron/hotplug overwriting temporary default.
+Table103 default now only wired; pref103 iif br-lan preserved. LAN route-get
+confirmed wan, bound wired JD HTTPS200; IPv6 default was already wired.
+Wireless association/authentication and router main table remain intact.
+No logout/restart/config/script deployment. Existing LAN connections may
+need reconnecting. Initial nohup launch failed (not installed); HUP-ignored
+background shell used and lock verified from a subsequent SSH connection.
+Restore: inspect current topology and hold PID/starttime, then run
+sh /root/scut-single-wan-20261007-0241/restore.sh to reinstall saved three-way
+default and release only this temporary hold. Do not run broad rollback.
+Temporary state does not survive reboot. No commit/push; prior dirty files
+preserved. Restoration still pending user's message.
+
+Temporary wired-only mode restored — 2026-10-07 08:31–08:40 GMT+8
+
+User sent “恢复” and reported phone WiFi login and stronger radio2.
+Verified temporary holder PID/starttime and terminated only that holder.
+Did not replay saved radio0 default blindly. Resumed actual dualwan-refresh
+and existing Native/USB watchdogs. Initial public checks all failed; radio0
+weak~-80dBm, gateway unreachable, router DNS used its default path. Wired
+and USB both returned JD200 with historical verified address via --resolve.
+Saved main routes in router-only backup, temporarily changed runtime router
+main default to wired to restore DNS. Normal interface-up later removed this
+temporary route and restored original main priorities (Native0/USB300/wan600).
+
+Existing native-best discovered radio2~-39dBm, but first candidate check
+failed; next attempt reached ready then old-radio0 precise Portal release
+failed curl7. Script retained original session ledger, aborted switch and
+disabled candidate. No assumed session release or unsafe login. Reacquired
+wan1 DHCP under actual Native-watchdog/Portal locks, same IPv4 lease; Native
+then passed HTTPS. Further automatic radio2 attempt aborted during candidate
+checks. Radio0 subsequently roamed naturally to channel52/AP ending4a:a0,
+RSSI~-55dBm, HE TX7/RX11, and passed bound HTTPS. Cannot attribute session
+loss to phone or claim radio2 automatic selection succeeded.
+
+Three links verified online. Health rejoin requires two successful rounds
+30seconds apart after identity change; allowed existing guard to confirm.
+Temporary lock gone, standard pref103 iif br-lan and automatic policy restored.
+No deployed source changes, quota/session forgery, reset or broad rollback.
+Original dirty files preserved; no commit/push. Router-only recovery logs and
+baseline are under /root/scut-single-wan-20261007-0241 and /tmp/scut-user-restore*.
+
+Persistent recovery fixes — 2026-10-07 08:40–08:54 GMT+8
+
+User requested persistent fixes including failed automatic radio2 selection,
+and reported seeing radio0 again. Read-only evidence showed radio2 had never
+completed those prior attempts; radio0 stayed active. Preserved existing dirty
+operations/VPS/WiFi-ticket/assets. Diagnosed candidate rate helper separately,
+without tracing credentials: actual qca-phy2-sta0 flock failed75; upper layer
+misreported DHCP failure. Also prior old Native path could not reach Portal,
+while bound resolved-IP checks proved USB/wired actually online.
+
+Deployed native-best: 45s/25-round candidate readiness with explicit75 retries
+and per-round daytime guards; actual rate failures remain fatal. Whitespace-
+tolerant ifstatus. Precise release uses native ledger IP/owner and may confirm
+same target through HTTPS-healthy USB if old path fails. Portal lock retained;
+no confirmed release means no new login. Native-watchdog now reacquires DHCP
+only after failed public confirmation AND two failed gateway probes, daytime
+locks/guard, >=300s throttle, with all persistent ledgers preserved.
+
+Persistent resolver config adds four campus upstreams bound to wan/phy3-sta0
+and allservers; keeps existing DHCP-derived Native DNS and other DHCP options.
+Avoids binding permanently to disabled Native device. DNS independent test on
+1053 resolved JD A/AAAA via wan despite absent phy2; isolated daemon stopped.
+No CDN pinning, public DoH deployment or main-route rewrite retained.
+
+173 complete groups passed on router BusyBox ash. Final logs refinement and
+added cooldown/night tests: eight final-source recovery groups passed. Not
+claiming final175 in a single full run. Actual net/radio/auth/routes mocked.
+08:48:25 backed up/staged/syntax/hash/bytes checked and atomically installed
+native-best/native-watchdog plus generated DHCP UCI config; dnsmasq restart.
+Original other configs, cron, credentials, three sessions/quotas hashes pass
+at code installation. Backup700 /root/scut-multiwan-recovery-backup-20261007;
+rollback.sh restores just two scripts/DHCP, no prior topology/session restore.
+
+08:49:19 real AUTO native-best apply completed radio0->radio2 after nine rate
+75 deferrals, confirmed old-IP unbind, new login and HTTPS. radio2~-40dBm,
+40MHz HE TX7/RX11, retained lease/metric100. No fixed BSSID/MAC alteration.
+Discovered old wired pending challenge expired15s during held Portal lock;
+old engine exited76 at08:48:56 then procd safely restored it~08:50.
+
+Fixed wired-events pending wait to120s monotonic, immutable first-request
+deadline. Holds existing session, no unlocked response/new Start/new budget
+claim. 25 pure protocol checks passed in actual router ARM64 runtime (15/59/
+119/120-second boundaries, repeated challenge deadline, no sends unlocked).
+Binary built against locally cached hash-verified original v3.1.3 with Zig;
+no package/kernel update.08:52:06 supported stop confirmed genuine none-wan
+ledger before atomic binary replacement/start. Other configs, credential and
+wireless sessions preserved. New PID22483/start14062878 heartbeat08:52:10,
+challenge08:52:13. Wired budget normal cooldown preserved, never cleared.
+Dedicated700 backup /root/scut-multiwan-recovery-wired-backup-20261007;
+rollback.sh confirms release before binary rollback/start. Both rollback
+syntax/original hashes validated; real rollback not performed.
+
+08:53:10–45 real Portal flock35s; same wired PID/starttime survived. Pending
+challenge admitted08:53:45 and UDP heartbeat completed08:53:55, no engine exit
+or new login. Final08:54 three bound HTTPS online, table103 Nativephy2/USBphy3/
+wan weights1:1:1, pref103 iif br-lan. Radio2 remained active; future automatic
+choice still permits radio0 if genuinely better by existing6dB hysteresis.
+No long-term claim. Next reboot/night/natural complete fault untested.
+Manifests/scripts/docs: deployment/recovery-20261007, docs/recovery-fixes-
+20261007.md. Local changes uncommitted/unpushed; no credential contents copied.
+
+08:55 natural watchdog/rate cron retained radio2 and healthy three-way table.
+Found pre-existing long retry_scan/scan_failures survived successful manual
+recovery. Final code revision clears them only after verified successful
+native-best, and advances survey timestamp only for actual apply/auto survey,
+not manual switch. Normal rate75 now logged as deferral. Final9 recovery
+mock groups pass, including backoff cleanup without fabricated survey.
+08:56:35 update.sh atomically replaced two scripts under affected locks;
+configuration/session/quota SHA checks unchanged. Initial original rollback
+baseline retained; installed manifest updated.08:57:04 actual apply returned0,
+Current/Strongest radio2, kept it, retry_scan absent, last_scan140925. All three
+bound HTTPSonline and table103 three equal next hops retained, wired PID22483.
+Final installed hashes refreshed in deployment/recovery-20261007.
+
+2026-10-07 09:00-09:17 GMT+8 — new Hylab VPS transport comparison
+Independent 5GB user cap; ens18 TX+RX through 09:17:26 = 3302228346 bytes,
+including approximately 2MB pre-test VM traffic. Successful payload 3008MiB.
+Debian13/Linux6.12.101, 8vCPU/8GiB, native MPTCP enabled. Original Unicom
+residential IPv4 egress157.122.171.37 specified ports unavailable from campus.
+IPv6 SSH57500 via wired WAN worked. Temporarily selecting panel Unicom
+dedicated policy routing changed IPv4 egress to58.252.223.164 and made SSH
+57500/test57501 reachable. No VM reboot or SSH/firewall configuration change.
+Residential wiredIPv6: CUBIC uncontaminated steady24s57.868Mbps; two staggered
+TCPs shared58.390Mbps over36s. 256MiB CUBIC late phase overlapped next test;
+whole-run mean excluded. BBR/FQ256MiB60.340Mbps. These do not locate shaper.
+Dedicated IPv4 ordinaryCUBIC64MiB Native/USB/wired40.929/40.822/52.221Mbps.
+Parallel ordinaryBBR/FQ50 each64MiB46.277/46.334/46.812; batch138.834Mbps.
+Native nowphy2 10.195.75.125; USB10.195.87.110; wired110.64.88.149.
+MPTCP3subflows: defaultCUBIC128MiB60.102; BBR/FQ50 256MiB124.802;
+CUBIC/FQ50 256MiB135.775Mbps. Mac singleTCP through temporary LAN application
+relay and MPTCP: CUBIC/FQ50 512MiB137.662Mbps31.199s, mostly139-142Mbps;
+CUBIC/FQ51 512MiB138.725Mbps30.960s, mostly142-145Mbps, two brief dips.
+VPS per-socket sendforce4MiB/router receiveforce4MiB/Mac receive1MiB,en0;
+no global TCP buffer edits. FQ quantum1448; maxrate is perTCP, not perWAN.
+09:17 cleanup verified: VPS defaultfq_codel handle0/CUBIC restored, BBR
+module unloaded, test listener/guards stopped, only original SSH57500 left.
+Original Unicom residential restored, panel plus IPv4 egress confirmed.
+Router testtables201-203/prefs80-82/endpoints201-202 removed, guard stopped,
+iif br-lan table103 three equal next hops kept. Seven config/session hashes
+unchanged. Three bound publicHTTPS HEAD200. Remote temporary directories and
+local test token removed. No production proxy, 115-CDN proof, package install,
+commit or push. Existing unrelated changes retained. Detailed record:
+docs/vps-hylab-test-20261007.md; original-line restoration screenshot in
+docs/assets/hylab-original-line-restored-20261007.png.
+
+
+2026-10-07 09:24-09:49 GMT+8: VPS egress follow-up; no production deployment.
+User raised new VPS cumulative cap from5GB to8GB; later prohibited old VPS
+and authorized ssh hk/sglg. Old test helper stopped and never reused afterward.
+Unicom policy active uploads observed peer58.252.223.164 (RIPE AS17816);
+Mobile policy peer120.237.234.202 (AS9808); fixedIPv6 remainsAS9808.
+Unicom campus3TCP each256MiB completed45.176s batch142.608Mbps;
+10-40s143.796, last15s141.231Mbps. No long-term or physical-contract proof.
+HK BBR1GiB97.899Mbps87.743s, steady95-99; after128MiB sender ceiling140Mbps.
+HK receiver initially serial, first queued campus upload NOT concurrency.
+Threaded follow-up: VPS128MiB101.692Mbps, concurrent campus19-20Mbps;
+campus interrupted by router reboot, incomplete46.5MB, not64MiB acceptance.
+SG64MiB95.787Mbps. Synchronized VPS two destinations64MiB each:
+HK112.105Mbps4.789s, SG97.635Mbps5.499s; both peer58.252.223.164.
+Supports available VM total egress>100Mbps, not proof ISP physical upgrade.
+09:45 router unexpectedly rebooted; user denied manual reboot. No reboot/
+auth/wireless/DHCP/deployment command issued by this experiment. No retained
+preboot logs or pstore; cause unknown. Seven baseline config/session hashes
+unchanged; test temps gone, endpoints empty, pref103/iifbr-lan preserved.
+Postboot Native/USB HTTPS200; wired timed out, engine absent, table103
+healthy dual wireless1:1. Cannot claim final three-WAN recovery.
+VPS restored defaultfq_codel0/CUBIC, unloaded temporaryBBR, onlySSH57500;
+SSHconfig hash unchanged; panel Unicom residential plus trace157.122.171.37.
+HK/SG testport80/listeners/dirs removed; original listeners preserved,
+no firewall/globalCC edits. Local ephemeral token/transfer archives removed.
+NewNIC5957184862B; HKdelta1466170481, SGdelta146604642;
+old helper before prohibition138500357, campus traffic reserve131108864.
+Conservative combined budget7839569206B (~7.840GB), under8GB; no more tests.
+Details docs/vps-hylab-test-20261007.md; final restored-line screenshot
+in docs/assets/hylab-linecheck-final-restored-20261007.png. No 115-CDN live
+proof, permanent proxy, package install, Git commit/push; unrelated work kept.
+
+2026-10-07 09:50-09:54 GMT+8: read-only unexpected reboot audit.
+Uptime samples confirm whole-router boot at about09:45:10. Boot ID
+b4d985b5-d0a2-4d8a-87ab-08c6a98dd597. Early wall clock08:52 was pre-NTP.
+No pstore or persistent/remote log: preboot cause evidence unavailable.
+Current dmesg has no panic/OOM; qcom_wdt bootstatus0, timeout30, not a
+complete exclusion of watchdog/board reset. panic3/panic_on_oops1 retained.
+Current availableRAM~160MiB/total372348kB, temperature56-57C, low load;
+these postboot samples cannot exclude earlier pressure. Inspected scheduled
+and cleanup paths have no reboot commands. Latest four deployed hashes match.
+Reboot coincided with interrupted campus upload, causation not established.
+Native radio2 and USB boundHTTPS online, table103 iif br-lan dual1:1.
+Wired carrier/static interface normal but engine not-ready; procd attempts
+alternate75/76, real attempts~120s apart. Specific75 stage not logged;
+76 is consistent with120s persistent cooldown. Session/budget untouched.
+No router writes, auth/logout/restart/deploy or new throughput tests.
+Cause remains unknown; future independent log/resource capture needed.
+Details docs/reboot-audit-20261007.md. Local documentation only, no push.
+
+2026-10-07 13:12-14:05 GMT+8 — new VPS permanent single-connection proxy.
+User authorized implementation and +5GB (new VPS combined cap13GB). Kept
+new VPS panel Unicom dedicated, IPv4 egress58.252.223.164; HK/SG/old VPS
+not used. Router LAN192.168.1.1:1088 HTTP/CONNECT/SOCKS5 -> authenticated
+TLS1.3/MPTCP57501 -> one ordinary CDN TCP. No parallel Range/reassembly.
+Native/USB/wired three subflows, table103 iifbr-lan unchanged; source/dest
+specific201-203/prefs80-82 and endpoints202/203 follow existing healthy
+routes every20s. CUBIC unchanged; force4MiB per socket; FQ50Mbit1448 only
+VPS IPv4 TCP source57501, other traffic fq_codel. Dedicated VPS user,
+strict certificate/token/public-target validation, Router max2 clients.
+Initial TLS fell back to TCP. Public8-byte transport preamble before TLS
+and post-TLS MPTCP validation fixed observed fallback; no TLS weakening.
+First VPS15min guard rolled back13:33, Router nohup unavailable -> guard
+not established. Manual first Router rollback13:41:55. Reinstalled v2 VPS
+13:38:09/Router13:41:59 with30min guard, confirmed live. Following actual
+acceptance, stopped both v2 guards14:02; new services remain enabled/active.
+Backups700 on both /root/scut-bond-backup-20261007-v2; dedicated rollback
+only. Panel restore is manual, current Unicom dedicated intentionally kept.
+512MiB synthetic single-MacTCP30.8315s139.304Mbps, all bytes verified.
+Original11564MiB direct47.893 vs proxy121.092Mbps, identical SHA.
+New115545507548B pinned sameCDN120.222.194.36/sameUA/PythonOpenSSL3.6.4
+and boundMacen0: direct94.918s45.977Mbps; proxy run1 39.293s111.063,
+run2 49.271s88.573Mbps. All206/exactContentRange/whole SHA
+3ed39f415584ce270050d907ca404177f1ae333f770101f8d117ed1cacc9ab1f.
+Run1 many138-140Mbps seconds but middle dip; run2 more variable, retained
+both. During run2 dips CDN upstream Recv-Q4.4-4.6MiB, MPTCP retransmissions
+and total3/no fallback; supports downstream transport bottleneck, does not
+locate specific ISP/wireless/ordering cause. No300Mbps acceptance.
+Early unbound direct ran viautun4, excluded A/B but charged545507548B.
+Systemcurl TLS failures excluded; modernPython strictTLS1KiB succeeds.
+Provided tools/bond-download.py one request/no retry/redirect, byte bound,
+private URL/UA file inputs; actual1KiB through deployed proxy passed.
+Benchmark disabled13:49, verified false and rejection. Go race tests pass;
+wrong token/private target/untrusted cert rejected. Seven config/session
+SHA unchanged; finalthree interfaceHTTPSHEAD200; VPS SSH SHA unchanged.
+Proxy own service restarts tested, entire VM/router reboot and prolonged
+WAN failover/night playback not tested. No auth/logout/radio/DHCP/reboot,
+package installs, Git commit/push; unrelated dirty work retained.
+Budget: previous conservative7839569206B + NIC9302697815-5957184862
++ Mac direct1158123960 +60MB overhead reserve =12403206119B (~12.403GB),
+under13GB. No further bulk downloads. Private stage/config transfer/signature
+files and test payloads cleaned; production secrets remain only intended
+private runtime configs. Evidence and exact boundary details in
+docs/vps-bond-proxy-20261007.md and deployment/bond-20261007/evidence/.
+
+
+2026-10-07 14:10–14:53 GMT+8 — Temporary campus IPv6 / new VPS diagnosis
+User requires production exit to remain new VPS; HK is diagnostic only.
+Added5GB then10GB => cumulative cap28GB. Old VPS not used.
+Read-only baseline, seven router config/session SHA checks preserved.
+Dynamic DHCPv6 scut_native6_test / scut_usb6_test acquired campus GUAs;
+source tables206/207/prefs86/87, no PD/DNS/main-default/UCI change.
+Bound HTTPS HEAD200 on both wireless and existing wired IPv6.
+No campus login/logout, DHCPv4 renewal, wireless restart, or reboot.
+Isolated TLS/MPTCP IPv6 test ports Router1089/1090 and VPS57502;
+HK port80 was free before owned temporary HTTP/MPTCP services.
+Native/USB/wired single-subflow128MiB56.29/60.87/60.24Mbps.
+Three IPv6 subflows proven by ss: CUBIC unpaced256MiB55.74Mbps,
+CUBIC FQ60 55.65, per-test-socket BBR FQ60 57.57. Global VPS CUBIC kept.
+Failed direct qdisc type replace did not apply. Correct child delete/add
+verified; entire transfer spanning queue change excluded, traffic charged.
+Added temporary same-/64 server IPv6 ending5b7e:14c9:8a3f:2707;
+DAD/outbound source/external TLS-MPTCP passed. New-address256MiB54.59Mbps.
+Old/new server IPv6 simultaneous independent1-subflow128MiB each:
+28.72/29.69Mbps, aggregate57.44 over common37.3839s window.
+Start times differ0.1ms; old-addressTTFB1.17s, new0.09s.
+Supports shared IPv6 upstream/path capacity, does not prove exact shaper.
+HK -> Native128MiB82.94Mbps; HK -> campus3sf256MiB132.19Mbps,
+BBR inherited HK existing global default; no dedicated HK queue changes.
+VPS -> HK ordinary IPv6 POST128MiB55.18Mbps (receiver56.56);
+HK -> VPS GET128MiB74.12Mbps is VPS download, not upload evidence.
+3 staggered64MiB single-subflow parallel means21.16/22.11/27.58Mbps;
+not summed as aggregate because different transfer windows.
+All completed MPTCP samples exact byte/pattern/SHA verified, no115 download.
+Panel read-only VM298 still Unicom dedicated; no separate IPv6 selector
+visible. Same-prefix address can change but uses original IPv6 gateway.
+Production service/exit/binaries untouched; local Go adds opt-in tcp6 and
+socket-specific cubic/bbr configuration, defaults compatible. Go race pass.
+14:52–14:53 all isolated services/private stages cleaned; alternate GUA,
+IPv6 VPS filter and test FQ removed; original fq_codel20 restored;
+BBR module loaded by this test unloaded. Production FQ50/source57501 kept.
+Router dynamic interface removal async: immediately after remove remnants
+still visible; final check confirms only original wired/ULA GUAs and main
+IPv6 rules, endpoints202203, three-way table103 iifbr-lan1:1:1.
+Own guard canceled; /root/scut-ipv6-backup-20261007 retained700.
+Seven production config/session SHA still OK. Router/VPS binary SHAs same
+as production baseline. VPS scut-bond/queue active+enabled; Macen0 proxy
+HTTPS HEAD homepage2000.868s. Trace-path HEAD404 was origin response and
+not treated as health200; subsequent homepage200 confirms proxy request.
+Cumulative conservative12403206119 + VPS12099629359-9302697815
++ HK7294179802-6570388776 +100000000 reserve =16023928689B,
+~16.024GB, under28GB; ~11.976GB left. NIC counting deliberately includes
+both ends of between-server transfer, retransmission/failed samples and
+binary uploads. No production IPv6 deployment or300Mbps acceptance.
+Docs/evidence: docs/vps-ipv6-test-20261007.md,
+deployment/ipv6-20261007/evidence/. No commit/push; dirty work retained.
+
+2026-10-07 15:00 GMT+8 — Seller bandwidth clarification, read-only
+Seller now says IPv6 cannot switch; treat IPv6 line as fixed. Same-prefix
+address change previously tested/cleaned did not switch carrier.
+Seller lists IPv4 lines down/up Mbps: CT home1000/60, CM home1000/30,
+CU home1000/60, CM dedicated100/200, CU dedicated300/100.
+Ingress CT home/CM dedicated/CU dedicated; all can egress, default CU home.
+Seller warns continuous bulk transfer over24h may be temporarily blackholed;
+no continuous long-running stress test configured or authorized here.
+Live tiny trace requests still IPv4 58.252.223.164 / IPv6 original2409;
+RIPE network-info fresh queries AS17816 / AS9808. No carrier/config changes,
+no bulk download; tiny control bytes covered by earlier100MB reserve.
+60Mbps measured throughput is not proof of a60Mbps plan or physical line;
+actual IPv6 uplink plan unknown. CUBIC unpaced and independentHK-upload
+also ~55, so not caused solely by experimental FQ60 queue.
+142.6Mbps45s contradicts a strict all-packets100Mbps upload path but does
+not prove upgrade; prior HK1GiB late95-99 differs by destination/duration.
+Current production FQ50 per sf means ~150 total cap, cannot infer maximum
+VM upload from its140 sample. Public source/ASN does not prove internal
+physical routing. More complete boundary in IPv6 test document.
+
+2026-10-07 09:55-10:04 GMT+8, resumed15:14: wired reboot recovery fix.
+Safe phase logging proves75=old-session-release unconfirmed; alternating76
+is durable120s cooldown. Added bounded multicast/broadcast Logoff, followed
+only when needed by credential-free EAPOL discovery and targeted Logoff.
+No Identity/MD5 response until exact discovered peer confirms release.
+Timeout/foreign peer/malformed response remain closed; Portal lock and
+session/budget guards retained. Explicit--release lock state corrected;
+cleanup margin12s covers up to7s wait. Logs contain stages/header numbers,
+no credentials/raw packets/server text. No session deletion/budget reset.
+10:02:52 actual discovery+targeted release confirmed, then login succeeded;
+10:02:55 heartbeat ready,10:02:57 challenge, subsequent heartbeats observed.
+10:03:38 production table103 restored Native/USB/wan1:1:1 iifbr-lan.
+10:04:30 supported stop confirmed release before final two-file replacement.
+Final scutclient-wired SHA05eafaf1f717dc876fcb526f118c8d6c796db00c7cbe2e1d9bbc643b73b20f2e;
+gate SHAff9bce81d102357b290da24f56c4df1747ea81fce003157ef234826148a982af.
+Backup/root rollback: /root/scut-wired-reboot-backup-20261007/rollback.sh.
+Eight network/wireless/DHCP/auth/wiredconfig/cron/native+usb session checks
+unchanged. Wired session only normally updated after confirmed release/login.
+After resume,15:15:05 uptime234.33, bootID5ac32e86-1ea9-49df-81f5-5e387fd20d9b
+shows another boot~15:11:11; this task did not initiate it, cause not audited.
+Final binaries persisted.15:12:33 automatic targeted release confirmed and
+login succeeded, PID4931/start7846. Later same-session challenges/heartbeats
+and three boundHTTPS online, table103 three1:1:1 verified. Other concurrent
+MPTCP/proxy state was not changed. No speed tests, Git commit or push.
+Initial176 isolated groups and33 protocol checks passed. Final10:04 suite
+result lost with later reboot, not claimed passed. Resumed33 protocol checks
+pass; first full rerun failed QCA promotion fixture because boot uptime<301s
+made its historical timestamp negative. Rerun after sufficient uptime ongoing.
+Details docs/wired-reboot-recovery-20261007.md; final test outcome follows.
+
+2026-10-07 15:21-15:22 GMT+8 final wired validation:
+Second young-boot suite run reached104 then failed15-minute historical
+fixture (negative timestamp). Corrected isolated awk monotonic-clock mock
+with +10000s offset, preserving live progression for bounded deadlines;
+no production clock/code changes for this test correction. Final full
+176 GROUPS PASSED on actual router BusyBox ash;33 protocol checks passed.
+Final binary/gate hashes and rollback original/installed checks OK;
+eight preserved configuration/session checks OK. Same wired PID4931 /
+start7846 remained ready, three-WAN table1031:1:1 and boundHTTPS online.
+Observed a later boot's automatic recovery; long-term stability not proven.
+No reboot initiated, no unrelated concurrent proxy/MPTCP state modified.
+
+
+2026-10-07 15:07–15:43 GMT+8 — Mixed-family MPTCP and production repeat
+Goal remains stable actual single-connection >111Mbps via new VPS.
+Mixed dual-stack formed wired IPv6 + two wireless IPv4, proven total3;
+245891072B received then stalled and router rebooted about15:11.
+User confirms no manual operation or other task; cause not proven.
+BBR/FQ47 real file113.825Mbps with ~83Mbps five-sample-window dip.
+CUBIC/FQ50 production baseline135.426; isolated CUBIC/FQ45 two files
+122.075/122.324, all completed files length/SHA verified. Local race pass.
+Only production pacing changed50->45 at15:26:41; formal result98.303Mbps
+with slow wired IPv4 subflow. Failed candidate restored15:38:48 toFQ50,
+queue script SHA32aa5b1d0d52db985b4c7d25c4ce3f0925679e6417fe6d0e3d88a784cb153eb0.
+Automatic pacing rollback canceled after manual restore; test services,
+filters/endpoints/BBR module cleaned, ordinary fq_codel20 restored.
+Production binaries unchanged; services active/enabled.
+15:30:01 local SSH log capture records QCA firmware ERR_TX_11B_PHYA,
+remoteproc fatal crash and recovery, then whole-router reboot. At15:43
+bootID8f877c30-fd4b-48a3-a93c-1d8901d41a70 uptime12min; no pstore or
+final panic stack. OpenWrtPR24578 is relevant crash-recovery hypothesis,
+not proof that this build lacks its fixes or all boots share one cause.
+No firmware/driver replacement, simulated crash, auth/logout/reboot command.
+Postboot productionFQ50 full545507548B108.069Mbps/40.382s; HTTP206 and
+SHA3ed39f415584ce270050d907ca404177f1ae333f770101f8d117ed1cacc9ab1f.
+ss shows total3 and one CDN TCP, wired delivery~7.29Mbps; not goal success.
+Seven preserved router config/session SHA checks OK, healthy table103
+iifbr-lan three1:1:1, endpoints202203, binaries original.
+15:43 VPS RX5132207358/TX14434046571; conservative previous16023928689
++NIC19566253929-12099629359+100MBreserve=23590553259B (~23.591GB),
+under28GB, ~4.409GB remains. NIC already counts CDN receiving/forwarding,
+failed samples/retransmissions; no extra payload count. Temporary log
+reader stopped. HK used only as SSH management jump after direct SSH
+penalty, production exit remains new VPS. No old VPS/commit/push.
+Docs docs/vps-mixed-test-20261007.md; evidence deployment/mixed-20261007/.
+
+2026-10-07 15:45–16:30 GMT+8 — Port repeat and one-response mixed test
+Same production binaries, temporary IPv4 port57502 FQ50/FQ45 full-file
+averages125.764/122.458Mbps. Port57502/FQ45 production candidate short
+checks121.557/118.928Mbps passed, but same LAN/MPTCP/CDN TCP with three
+sequential256MiB Range responses only95.696Mbps/67.322s, minimum~5s65.405.
+All per-response SHA verified. Port is not established root cause.
+Both ends restored15:59:18 to production IPv4port57501/FQ50, JSON and
+queue script checked against /root/scut-port-backup-20261007 originals.
+Short mixed wiredIPv6/dualWiFiIPv4 FQ45 preflight118.712/min~5s117.772;
+three reused responses117.517/min82.541 at request boundary, not root proof.
+User added6GB=>34GB, about1minute only. Old full-file execution was rejected
+before downloading; not retried. User then explicitly selected new1GB file
+to continue and later added3GB=>37GB. Private signed URL/UA stay outside Git.
+New file1074402961B, pinnedCDN39.173.161.17, one HTTP206 response per test:
+mixed CUBIC/FQ45 900MiB63.455s118.978Mbps/min~5s101.692;
+mixed CUBIC/FQ43 900MiB66.875s112.893Mbps/min~5s91.257;
+mixed BBR/FQ45 512MiB37.193s115.477Mbps/min~5s106.099.
+No parallel Range/cache/retry. Both900MiB SHA match663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b.
+512MiB SHA recorded, no independent reference hash claimed. Tiny held
+CONNECT proves total3 and actualBBR on three mixed subflows.
+FQ45 aggregate raw limit135Mbps; healthy seconds~123–126 after overhead.
+Prior142–145Mbps seconds under different limits/synthetic tests cannot
+be compared directly with these whole-transfer averages including stalls.
+During several dips same upstream Recv-Q2–5MB, downstream subflow rate/
+cwnd/retrans changed. Data present atVPS argues against CDN-only cause;
+specific scheduler/campus/wireless root cause remains unproved.
+Same file/IP/UA directly toVPS64MiB HTTP206 in2.808325s191.171Mbps;
+upstream short sample only, not minute stability proof.
+16:28:38 temporary mixed endpoints/filters/servers/timers/configs cleaned;
+USB202 nofullmesh and add_addr_accepted0 restored, fq_codel20 restored,
+temporaryBBR module removed. Production57501/FQ50 active/enabled, binaries
+unchanged, JSONs/queue match original backups. Production1KiB206/SHA pass.
+BootID8f877c30-fd4b-48a3-a93c-1d8901d41a70 unchanged; no reboot command.
+Seven current router config/session hashes retained, table103 iifbr-lan
+three1:1:1 retained. No radios/auth/DHCP changes. No mixed production
+deployment, no stable>111Mbps acceptance, no Git commit/push.
+Final budget in deployment/mixed-20261007/evidence/traffic-budget.json;
+docs/vps-mixed-test-20261007.md and evidence updated.
+16:34:23 finalNIC RX11693728073/TX20778221688; conservative total
+36496249091B/37000000000B, remaining503750909B. Includes direct64MiB CDN
+sample plus all forwarded payload/retransmissions and100MB extra reserve.
+Final Python compile and Git diff whitespace check pass. Goal remains active
+and unachieved; no claim that upstream short sample proves long stability.
+
+2026-10-07 16:43–17:27 GMT+8 — Mixed production failed, split pacing failed
+User added3GB=>40GB, later2GB=>42GB; target average>111Mbps and minimum
+~5s>=100Mbps. Added same-VPS IPv4 connection-setup fallback to candidate
+Go proxy (before authentication/target request only), Go race pass; forced
+unassigned IPv6 source falls back to3-subflow IPv4 and1KiB206/SHA passes.
+New path helper9 isolated BusyBox groups pass. No live WAN shutdown.
+Mixed FQ45 candidate900MiB155.189s48.649Mbps/min0.973 failed. FreshFQ20
+and host-only MTU1400 short tests failed; IPv6 subflow retransmission high.
+Both ends rolled back17:01 with original binary/JSON/queue hashes passing.
+Independent acceptance Timer now bounds read by elapsed time, verified
+0.5s deadline at0.501343s; prior failed minute exceeded time and completed.
+ICMPv6 BPF header-only captures:4VPS OUT requests,8router IN requests,
+8router OUT replies,8VPS IN replies. Duplication lies between guest NIC
+and router WAN; no TCP duplication or precise network-device cause proved.
+Split FQ26v6/FQ50v4 temporary128MiB9.812s109.436/min112.505.
+Formal LAN1088 same file900MiB68.373949s110.418476/min76.080759; SHA
+663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b matches.
+Failed target; both ends restored17:27:33 to original57501/FQ50, no mixed
+flag/dropin/endpoint service; both new rollback guards canceled. Seven
+router config/session hashes preserved, table103 iifbr-lan three1:1:1.
+Backup dirs mixed-production-backup-20261007 and split-production-backup-
+20261007 on each end700. New local source/deployment candidates remain
+for review; they are not current production. No auth/radio/reboot changes.
+NIC17:27:33 RX13905686982 TX22968793547 gives40898779859B of42GB
+including100MB control reserve;1101220141B remained before wireless
+build downloads. User requests prioritize still-unfixed wireless firmware
+issues. Build downloads on HK will be separately charged to this cap.
+Evidence deployment/mixed-production-20261007/evidence/. No commit/push.
+
+2026-10-07 17:54–18:03 GMT+8 — ath11k AHB recovery patch activated
+Official matching SDK rebuilt both original modules byte-identically; applied
+OpenWrt commit3ec9ced IRQ/CE crash recovery fixes. Raw module MODPOST pass;
+unrelated reduced APK packaging failure not counted as APK success.
+8 isolated BusyBox boot-guard groups pass. User expressly authorized install
+and reboot. Installed17:54:07, bootID1e642942-ec2c-4fc7-84e2-302aa6be4648,
+confirmed18:01:24 before180s deadline; S08 guard disabled, timer stopped.
+Both new module hashes match evidence/build.json; native/USB online, same
+phy0–3/MAC, firmware02146 unchanged. Wired initial prepare75 then automatic
+18:00:42 heartbeat,18:02:05 table103 three1:1:1, all3HTTPS pass18:03:12.
+7 config/session hash checks pass. No credential/session deletion or flash.
+Original production IPv4 proxy unchanged. One128MiB HTTP206 response8.218534s
+130.648826Mbps/min~5s135.825137; SHA2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046.
+ss proves total3 and oneCDN TCP. Average includes connection/TTFB0.349535s;
+window starts after headers. No observed assert/Oops/panic in short load;
+no deliberate firmware crash, no long stability claim. Backup700 at
+/root/scut-ath11k-backup-20261007; rollback restores disk, needs reboot to
+replace loaded modules. Local docs/evidence updated; no commit/push.
+
+2026-10-07 18:05–18:11 GMT+8 — Persist wired startup admission wait
+Correction: initial17:59:16 phase=prepare75 proves Portal lock was already
+held. netifd WAN startup simultaneous; original gate lacks branch logging,
+so exact carrier/IP/other precondition failure remains unknown. Earlier
+user-facing "lock contention" attribution was premature.
+New read-only preflight returns77 only missing carrier/IP; wrong IP/unsafe
+state/policy fail closed. Initial engine admission checks policy every1s,
+waits up to120s monotonic for interface and real Portal flock, rechecks
+prepare under lock, releases on interface race. No packet/journal/claim
+while waiting; existing cooldown/night cap/confirmed release retained.
+11 real isolated kernel-flock admission checks,177 BusyBox groups and33
+protocol checks pass. No forced live lock conflict or second router reboot.
+18:09:39 supported stop confirmed Logoff;18:09:41 atomic gate/binary
+installation, same-mode backup700 and rollback. New engine9646/start62014
+admission waited0,18:09:45 UDP ready;18:10:50 challenge/heartbeat continue.
+18:10:29 table103 three1:1:1,18:11 endpoint203/rule82 restored by helper.
+All3HTTPS online,7 preserved hashes pass, boot ID unchanged, ath11k state
+confirmed. Binary3e39bbb0fba78575fc31c0f6a142474cfa45b1222d95bc26c9263ecdbfe79e30;
+gate2ac9b3bd38a464af1982dd7254a5b24a9f28515586685c8db1e42825c430fed7.
+Backup/root/scut-wired-admission-backup-20261007; historical scripts bound
+to this baseline, do not rerun. Future actual cold boot not yet observed.
+Acceptance tool now separately reports body_seconds/body_mbps and header-
+based window scope; prior128MiB body average derived136.452Mbps, end-to-end
+130.649 includes0.350TTFB, min~5s135.825 consistent different intervals.
+No additional bulk download. Final18:11:10 VPS RX14047812119/TX23107467041;
+with100MB control and550MB build reserve total41729578490B/42GB,
+remaining270421510B. Goal stable minute>111/min100 remains unachieved.
+No Git commit/push; docs/evidence updated.
+
+2026-10-07 18:12–19:55 GMT+8 — 新VPS入口/出口对照、BBR分路限速及域名正式验收
+本轮用户将目标改为全程平均>121Mbps、最低约五秒>=80Mbps，优先平均；
+额度依次42→47→57→60→62GB。VPS仍为新机，HK仅SSH跳板，不作生产出口。
+四入口身份/TLS/MPTCP只读握手一致；电信/移动入口64MiB约59.63/68.70Mbps，
+不优于联通。内网线路API已审阅，临时移动专线出口64MiB92.32Mbps，已切回
+联通专线并确认。没有据此宣称卖家物理带宽升级，未执行curl管道脚本。
+基线FQ50正式900MiB131.81/78.82Mbps最低不合格；FQ47硬超时最低51.75，
+尾段包含18:25自然无线固件崩溃，不能只归因于队列。该试验自动恢复误调用
+仅初装适用的队列脚本，失败后已明确恢复FQ50；后续专用回滚显式恢复队列。
+GSO4KiB短测101.10，已恢复两项65536。RACK5有效900MiB105.60/98.20，
+已恢复1。首个标签rack5的900MiB实际在计时器回退后开始，全程recovery1；
+133.75/112.10只能当基线，不能冒充候选。BBR全三路FQ50正式121.20/71.89，
+最低不合格。逐秒周期性下降部分对应BBRv1 ProbeRTT/cwnd4，非全部异常解释。
+隔离BBR有线45/两无线50的512MiB复验127.85/111.11；另一次上游Recv-Q0
+异常50秒仅11.4MB，失败样本保留。19:05:48正式部署每代理socket BBR及
+有线目标110.64.88.149每流45Mbit、两无线每流50Mbit；普通流量fq_codel、
+全局TCP仍CUBIC，BBR模块持久加载。19:08:20确认并解除保护。专用备份
+/root/scut-bond-bbr-wired45-backup-20261007（700），保留有效rollback.sh。
+固定CDN .17两次正式900MiB分别61.070442/60.700015秒，平均123.623589/
+124.378012、最低91.413686/110.286935Mbps，已知完整SHA均一致。正式128MiB
+另有25秒仅9.0MB异常，未取得及时TCP状态，原因未确定，不删失败数据。
+正常DNS选.18的384MiB测试40秒只完成205389824B、最低26.79Mbps；77次CDN
+采样74次Recv-Q0、接收窗口充足，支持上游供数/路径差异。原程序明确仅IPv4，
+不是意外IPv6。直连VPS同源64MiB三次118.04/205.20/219.35Mbps，均哈希通过。
+新增可选preferred_upstream_ipv4，只重排当次DNS内有效公网IPv4，不强塞旧IP，
+所有DNS答案仍先检查公有性。首选消失时按新DNS，拨号失败保留原逐地址逻辑；
+已建立响应不重试，不做并发Range/缓存/TLS中间人。Go race回归通过；路由器
+程序/原认证配置未改。19:40:41安装首选cdnfhnfile.115cdn.net→39.173.161.17。
+域名128MiB115.23/112.61仅功能短测。19:46:49真实域名900MiB单TCP/单206
+正式验收58.875642秒，全程128.232100Mbps（含0.511868秒TTFB）、正文129.36，
+最低5.010422秒窗口112.173544Mbps，完整SHA与既有900MiB已知值相同。
+半秒采样113次MPTCP三子流，三子流均BBR；CDN113次中112次Recv-Q非零，
+本次没有.18持续供数不足。最低窗口按响应头后采样，与全程均值范围不同。
+首轮600秒保护于19:50:40、正式下载结束后但确认前自动恢复旧版；已核对
+传输期间实际新SHA/目标.17。19:53:30重新安装同一已验候选，另设保护，
+真实域名1KiB/已知SHA校验及实际.17日志通过，19:53:32确认并解除保护。
+当前程序7427364d244e6bf761c9d112c6392413a319eb754b0d6fe2d31f0b8ef3214209；
+队列4fd59c348cf9aa0f9ac9979d65ae531fb6e66c3c0fcc11443b694d670f2285f1。
+DNS专用备份/root/scut-bond-cdn-preference-backup-20261007（700），回退只恢复
+程序/配置，保留已确认BBR/45队列。上述安装/重启脚本均绑定本次基线，不重跑。
+19:54路由器同boot ID1e642942-ec2c-4fc7-84e2-302aa6be4648，无再次整机重启；
+表103保留iif br-lan及三路1:1:1，目标表201–203/rules80–82保留，Native TX
+MCS9/RX11、有线引擎9646运行。18:25/19:06两次自然firmware fatal后恢复，
+驱动修复的恢复路径已有自然证据，但固件fatal自身未消失。有线新等待机制
+仍未经历另一次真实冷启动。此次通过的是约一分钟验收，不是长期所有连接
+保证；首选仍可能变慢/退出DNS，300Mbps仍未达到。
+临时入口/出口/RACK/GSO/测试进程及规则已恢复/清理，LAN192.168.1.1:1088、
+新VPS联通专线生产出口保留。最后19:55:02 RX24153912575/TX32851035835，
+含原历史及100MB控制/550MB构建预留，累计保守61579247740B/62000000000B，
+剩420752260B，不再大流量下载。详细结果/原始逐秒/TCP记录保存在
+deployment/ingress-20261007/evidence/；README和现行代理文档更新，无Git提交推送。

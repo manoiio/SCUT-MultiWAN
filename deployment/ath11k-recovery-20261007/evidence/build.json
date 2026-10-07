@@ -1,0 +1,40 @@
+{
+  "status": "installed-boot-confirmed",
+  "kernel": "6.12.94",
+  "kernel_abi": "dbd7ac5945a1d38dbc7f22bedd674e40",
+  "backports": "6.18.26",
+  "sdk_sha256": "7aabdda8607c372cb0fd526f0eede2f680ae7d95a4758a38bbb49381e5c97621",
+  "sdk_base_revision": "f0a60eee2fe051741c643ea6118718aae1ef17fb",
+  "upstream_openwrt_commit": "3ec9ced6e1fa1a17803ba2da55fe35a6ba5486cc",
+  "baseline": {
+    "ath11k.ko": {
+      "bytes": 767264,
+      "sha256": "661f0c810d8793c69d3701ee5d5dff5d550ea95894473b7c0427c52d79cca74f"
+    },
+    "ath11k_ahb.ko": {
+      "bytes": 28960,
+      "sha256": "0efa0d8b4554171404f095d8b956702b9f5e15c3edca199c057fe7b7b2a8b2be"
+    }
+  },
+  "patched": {
+    "ath11k.ko": {
+      "bytes": 767360,
+      "sha256": "3795196ca5c47c560ca16a20bc0a2b056319afdbf47b5c95978a2efc3989c6cd"
+    },
+    "ath11k_ahb.ko": {
+      "bytes": 29152,
+      "sha256": "585b3d0a6de4c3666683b280f5dd9702e86b56026460e9e7ad70c913abbd82ba"
+    }
+  },
+  "baseline_reproduced_exactly": true,
+  "module_build_modpost": "passed",
+  "apk_packaging": "failed due unrelated missing ath9k_common.ko in reduced driver configuration; raw modules separately checked",
+  "isolated_busybox_guard_groups": 8,
+  "activation": "Installed 17:54:07, authorized reboot completed, confirmed 18:01:24 GMT+8; no live unload or firmware assert simulation",
+  "boot_id": "1e642942-ec2c-4fc7-84e2-302aa6be4648",
+  "confirmed_at": "2026-10-07T18:01:24+08:00",
+  "verified_at": "2026-10-07T18:03:12+08:00",
+  "three_wan_https": true,
+  "preserved_config_session_hashes": 7,
+  "guard_disabled": true
+}

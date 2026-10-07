@@ -1,0 +1,13 @@
+[Unit]
+Description=SCUT proxy IPv4 address announcement for mixed MPTCP
+After=network-online.target
+Before=scut-bond.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/scut-bond/vps-endpoints.sh start
+ExecStop=/usr/local/lib/scut-bond/vps-endpoints.sh stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

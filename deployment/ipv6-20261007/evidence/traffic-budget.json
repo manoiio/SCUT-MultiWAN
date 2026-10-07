@@ -1,0 +1,11 @@
+{
+  "cap_bytes": 28000000000,
+  "prior_conservative_bytes": 12403206119,
+  "vps_prior_nic_bytes": 9302697815,
+  "vps_final_nic_bytes": 12099629359,
+  "hk_start_nic_bytes": 6570388776,
+  "hk_final_nic_bytes": 7294179802,
+  "additional_reserve_bytes": 100000000,
+  "cumulative_conservative_bytes": 16023928689,
+  "remaining_bytes": 11976071311
+}

@@ -1,0 +1,65 @@
+[
+  {
+    "relative_seconds": 10.783,
+    "peer": "221.4.34.108:62005",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 58182164
+  },
+  {
+    "relative_seconds": 30.8,
+    "peer": "221.4.34.108:62005",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 169248388
+  },
+  {
+    "relative_seconds": 31.314,
+    "peer": "221.4.34.127:3782",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 169542349
+  },
+  {
+    "relative_seconds": 41.587,
+    "peer": "221.4.34.127:3782",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 225254801
+  },
+  {
+    "relative_seconds": 45.692,
+    "peer": "110.64.88.149:46471",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 227645084
+  },
+  {
+    "relative_seconds": 45.692,
+    "peer": "221.4.34.108:62005",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 250108940
+  },
+  {
+    "relative_seconds": 51.85,
+    "peer": "221.4.34.127:3782",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 281360685
+  },
+  {
+    "relative_seconds": 55.96,
+    "peer": "221.4.34.108:62005",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 304740852
+  },
+  {
+    "relative_seconds": 58.012,
+    "peer": "110.64.88.149:46471",
+    "cwnd": 4,
+    "cwnd_gain": 1.0,
+    "bytes_sent": 286500260
+  }
+]

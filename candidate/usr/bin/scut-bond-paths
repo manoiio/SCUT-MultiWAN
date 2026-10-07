@@ -1,0 +1,105 @@
+#!/bin/sh
+# Follows the existing health policy; never authenticates or changes radios.
+set -u
+SERVER=58.252.223.164
+SERVER6=2409:8a55:727a:5740:be24:11ff:fea4:ae10
+STATE=${SCUT_BOND_STATE:-/var/run/scut-bond}
+MIXED_FILE=${SCUT_BOND_MIXED_FILE:-/etc/scut-bond/mixed.enabled}
+mkdir -p "$STATE"
+chmod 700 "$STATE"
+ACTIVE=0
+
+cleanup() {
+    if [ -f "$STATE/paths" ]; then
+        while read -r slot dev gw addr; do
+            table=$((201 + slot)); pref=$((80 + slot))
+            current=$(ip mptcp endpoint show id "$table" 2>/dev/null | awk '{print $1}')
+            [ "$current" != "$addr" ] || ip mptcp endpoint delete id "$table" >/dev/null 2>&1
+            ip rule del pref "$pref" from "$addr/32" to "$SERVER/32" lookup "$table" >/dev/null 2>&1 || :
+            ip route del table "$table" "$SERVER/32" >/dev/null 2>&1 || :
+        done < "$STATE/paths"
+    fi
+    rm -f "$STATE/paths" "$STATE/local-address" "$STATE/fallback-address" "$STATE/mode"
+}
+shutdown() {
+    cleanup
+    [ "$ACTIVE" != 1 ] || ip mptcp limits set subflows 2 add_addr_accepted 0 >/dev/null 2>&1 || :
+}
+trap 'exit 0' TERM INT
+trap shutdown EXIT
+
+# Refuse to overwrite unrelated routing/endpoint state on first installation.
+if [ ! -f "$STATE/paths" ]; then
+    for table in 201 202 203; do
+        [ -z "$(ip route show table "$table" 2>/dev/null)" ] || exit 1
+        [ -z "$(ip mptcp endpoint show id "$table" 2>/dev/null)" ] || exit 1
+    done
+    [ -z "$(ip rule show | awk '$1=="80:" || $1=="81:" || $1=="82:"')" ] || exit 1
+else
+    cleanup
+fi
+ACTIVE=1
+
+refresh() {
+    ip -4 route show table 103 2>/dev/null | awk '
+        /via/ {gw="";dev="";for(i=1;i<=NF;i++){if($i=="via")gw=$(i+1);if($i=="dev")dev=$(i+1)}
+        if(gw!=""&&dev!="")print dev,gw}' > "$STATE/healthy"
+    : > "$STATE/next"
+    slot=0
+    while read -r dev gw; do
+        case "$dev" in phy0-sta0|phy2-sta0|phy3-sta0|wan) ;; *) continue;; esac
+        addr=$(ip -4 -o addr show dev "$dev" scope global | awk 'NR==1{split($4,a,"/");print a[1]}')
+        [ -n "$addr" ] || continue
+        [ "$slot" -lt 3 ] || break
+        printf '%s %s %s %s\n' "$slot" "$dev" "$gw" "$addr" >> "$STATE/next"
+        slot=$((slot + 1))
+    done < "$STATE/healthy"
+    v6=""
+    if [ -f "$MIXED_FILE" ] && awk '$2=="wan"{found=1} END{exit !found}' "$STATE/next"; then
+        v6=$(ip -6 -o addr show dev wan scope global | awk '
+            !/tentative|deprecated|dadfailed/ {split($4,a,"/");if(a[1]~/^[23]/){print a[1];exit}}')
+        if [ -n "$v6" ]; then
+            ip -6 route get "$SERVER6" from "$v6" > "$STATE/v6-route" 2>/dev/null || v6=""
+            if [ -n "$v6" ] && ! awk '
+                /unreachable|prohibit|blackhole/ {exit 1}
+                {for(i=1;i<NF;i++)if($i=="dev"&&$(i+1)=="wan")good=1}
+                END{if(!good)exit 1}' "$STATE/v6-route"; then v6=""; fi
+        fi
+    fi
+    mode=ipv4
+    [ -z "$v6" ] || mode=mixed
+    printf '%s %s\n' "$mode" "$v6" > "$STATE/next.mode"
+    if [ -f "$STATE/paths" ] && [ -f "$STATE/mode" ] && cmp -s "$STATE/paths" "$STATE/next" && cmp -s "$STATE/mode" "$STATE/next.mode"; then return; fi
+    cleanup
+    cp "$STATE/next" "$STATE/paths"
+    while read -r slot dev gw addr; do
+        table=$((201 + slot)); pref=$((80 + slot))
+        ip route replace table "$table" "$SERVER/32" via "$gw" dev "$dev" src "$addr" onlink || { cleanup; return 1; }
+        ip rule add pref "$pref" from "$addr/32" to "$SERVER/32" lookup "$table" || { cleanup; return 1; }
+        if [ "$mode" = mixed ]; then
+            [ "$dev" = wan ] || ip mptcp endpoint add "$addr" dev "$dev" id "$table" subflow fullmesh || { cleanup; return 1; }
+        elif [ "$slot" -gt 0 ]; then
+            ip mptcp endpoint add "$addr" dev "$dev" id "$table" subflow || { cleanup; return 1; }
+        fi
+    done < "$STATE/paths"
+    add=0
+    [ "$mode" != mixed ] || add=1
+    ip mptcp limits set subflows 2 add_addr_accepted "$add" || { cleanup; return 1; }
+    if [ -s "$STATE/paths" ]; then
+        awk 'NR==1{print $4}' "$STATE/paths" > "$STATE/fallback-address.new"
+        mv "$STATE/fallback-address.new" "$STATE/fallback-address"
+        if [ "$mode" = mixed ]; then
+            printf '%s\n' "$v6" > "$STATE/local-address.new"
+        else
+            cp "$STATE/fallback-address" "$STATE/local-address.new"
+        fi
+        mv "$STATE/local-address.new" "$STATE/local-address"
+    fi
+    cp "$STATE/next.mode" "$STATE/mode"
+    logger -t scut-bond "updated proxy paths from healthy table103; mode=$mode"
+}
+while :; do
+    refresh || :
+    [ "${SCUT_BOND_ONCE:-0}" != 1 ] || break
+    sleep 20 & wait $!
+done

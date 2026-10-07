@@ -1,0 +1,13 @@
+[Unit]
+Description=Per-subflow pacing for SCUT MPTCP proxy only
+Before=scut-bond.service
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/scut-bond/vps-queue.sh
+ExecStop=/usr/sbin/tc qdisc del dev ens18 root
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

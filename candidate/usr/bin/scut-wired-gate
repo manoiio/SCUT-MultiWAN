@@ -3,6 +3,17 @@
 . /usr/lib/scut-multiwan/common.sh || exit 1
 [ -f /etc/scut-wired.conf ] || exit 75
 . /etc/scut-wired.conf
+# Non-mutating admission checks may run without the Portal lock. No journal,
+# cooldown claim, release or authentication is permitted in this branch.
+preflight() {
+    mw_require_active 60 || return $?
+    [ "$WIRED_ENABLE" = 1 ] || return 75
+    [ "$(cat /sys/class/net/wan/carrier 2>/dev/null)" = 1 ] || return 77
+    actual="$(ip -4 -o addr show dev wan | awk '{print $4; exit}')"
+    [ -n "$actual" ] || return 77
+    [ "$actual" = "$WIRED_IP/24" ] || return 75
+}
+if [ "$1" = preflight ]; then preflight; exit $?; fi
 [ "$(readlink /proc/self/fd/9 2>/dev/null)" = /tmp/scut-multiwan-locks/portal ] && flock -n 9 || exit 75
 STATE=/etc/scut-multiwan/wired.session
 write_state() {
@@ -48,10 +59,7 @@ claim() {
 }
 case "$1" in
     prepare)
-        mw_require_active 60 || exit $?
-        [ "$WIRED_ENABLE" = 1 ] && [ "$(cat /sys/class/net/wan/carrier 2>/dev/null)" = 1 ] || exit 75
-        actual="$(ip -4 -o addr show dev wan | awk '{print $4; exit}')"
-        [ "$actual" = "$WIRED_IP/24" ] || exit 75
+        preflight || exit $?
         check_state || exit $?
         claim || exit $?
         ;;
@@ -72,7 +80,7 @@ case "$1" in
         printf '%s %s\n' "$2" "$started" > /tmp/scut-wired-ready.$$
         mv /tmp/scut-wired-ready.$$ /tmp/scut-wired-ready
         ;;
-    cleanup) mw_require_active 5 || exit $?;;
+    cleanup) mw_require_active 12 || exit $?;;
     released) write_state none || exit 75; rm -f /tmp/scut-wired-ready;;
     uncertain)
         rm -f /tmp/scut-wired-ready

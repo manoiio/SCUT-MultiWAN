@@ -79,8 +79,13 @@ reset; wired_fixture; TEST_WIRED_IP=10.4.4.41; export TEST_WIRED_IP
 run_rc 75 gate prepare
 pass 'assigned wired IP must match before authentication'
 reset; wired_fixture; printf '0\n' > "$TEST_ROOT/sys/wan/carrier"
-run_rc 75 gate prepare
+run_rc 77 gate prepare
 pass 'unplugged wired port cannot authenticate'
+reset; wired_fixture
+run_rc 0 "$BIN/scut-wired-gate" preflight
+read stamp count last block < "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
+[ "$stamp" = none ] || fail 'preflight consumed durable attempt'
+pass 'unlocked preflight is read-only and consumes no attempt'
 reset; wired_fixture; run_rc 1 gate needs-release; run_rc 0 gate journal; run_rc 0 gate needs-release
 read stored dev < "$TEST_ROOT/etc/scut-multiwan/wired.session"
 [ "$stored" = 10.4.4.40 ] && [ "$dev" = wan ] || fail 'journal missing before write'

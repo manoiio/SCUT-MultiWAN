@@ -1,0 +1,449 @@
+[
+  {
+    "label": "repaired-baseline-v4-fq50-900m",
+    "bytes": 943718400,
+    "seconds": 57.2796139580023,
+    "mbps": 131.80513411866764,
+    "minimum_five_second_window_mbps": 78.82325074579371,
+    "complete": true,
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+  },
+  {
+    "label": "repaired-baseline-v4-fq47-900m",
+    "bytes": 911998976,
+    "seconds": 75.00147008299245,
+    "error": "TimeoutError",
+    "minimum_five_second_window_mbps": 51.75489133170099,
+    "complete": false
+  },
+  {
+    "label": "ingress-ct-v4-fq50-64m",
+    "bytes": 67108864,
+    "seconds": 9.00322166699334,
+    "mbps": 59.63097787186773,
+    "minimum_five_second_window_mbps": 53.93542271159428,
+    "complete": true,
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+  },
+  {
+    "label": "ingress-cm-v4-fq50-64m",
+    "bytes": 67108864,
+    "seconds": 7.814716916996986,
+    "mbps": 68.69998205978611,
+    "minimum_five_second_window_mbps": 64.07389474466403,
+    "complete": true,
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+  },
+  {
+    "label": "egress-mobile-special-64m",
+    "bytes": 67108864,
+    "seconds": 5.815204292011913,
+    "mbps": 92.32193488670306,
+    "minimum_five_second_window_mbps": 97.43960172117862,
+    "complete": true,
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+  },
+  {
+    "label": "v4-fq50-gso4k-128m",
+    "bytes": 134217728,
+    "seconds": 10.620543166995049,
+    "mbps": 101.1004622943218,
+    "minimum_five_second_window_mbps": 103.66549048264244,
+    "complete": true,
+    "sha256": "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046"
+  },
+  {
+    "label": "v4-fq50-rack5-128m",
+    "bytes": 134217728,
+    "seconds": 8.338353375002043,
+    "mbps": 128.7714463168499,
+    "minimum_five_second_window_mbps": 132.7473256973738,
+    "complete": true,
+    "sha256": "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046"
+  },
+  {
+    "label": "v4-fq50-rack5-900m-first",
+    "actual_recovery": 1,
+    "requested_recovery": 5,
+    "candidate_valid": false,
+    "reason": "restore ran at 18:45:21 before download began around 18:45:37",
+    "bytes": 943718400,
+    "seconds": 56.445860625011846,
+    "mbps": 133.75200796663228,
+    "minimum_five_second_window_mbps": 112.0990810122592,
+    "complete": true,
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+  },
+  {
+    "label": "rack5-900m-valid-first",
+    "bytes": 943718400,
+    "seconds": 71.49535658297827,
+    "mbps": 105.59772775225875,
+    "ttfb": 0.3995654580066912,
+    "body_seconds": 71.09579112497158,
+    "body_mbps": 106.19119754542317,
+    "window_scope": "after_response_headers",
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 98.19779517163732,
+      "seconds": 5.008077250007773,
+      "ending_at": 53.564922582998406
+    },
+    "actual_recovery": 5,
+    "candidate_valid": true,
+    "complete": true,
+    "source_log": "rack5-900m-valid-first.log",
+    "minimum_five_second_window_mbps": 98.19779517163732
+  },
+  {
+    "label": "bbr-fq50-128m",
+    "bytes": 134217728,
+    "seconds": 8.44639054100844,
+    "mbps": 127.12434012929297,
+    "ttfb": 0.3408619160181843,
+    "body_seconds": 8.105528624990257,
+    "body_mbps": 132.47030189857492,
+    "window_scope": "after_response_headers",
+    "sha256": "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 128.1089956855662,
+      "seconds": 5.0010534589819144,
+      "ending_at": 5.341915375000099
+    },
+    "complete": true,
+    "source_log": "bbr-fq50-128m.log",
+    "minimum_five_second_window_mbps": 128.1089956855662
+  },
+  {
+    "label": "bbr-fq50-900m-first",
+    "bytes": 943718400,
+    "seconds": 62.289745791989844,
+    "mbps": 121.20369258226866,
+    "ttfb": 0.354952833004063,
+    "body_seconds": 61.93479295898578,
+    "body_mbps": 121.89831981838648,
+    "window_scope": "after_response_headers",
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 71.88950160453939,
+      "seconds": 5.002977625001222,
+      "ending_at": 56.248649707995355
+    },
+    "complete": true,
+    "source_log": "bbr-fq50-900m-first.log",
+    "minimum_five_second_window_mbps": 71.88950160453939
+  },
+  {
+    "label": "bbr-wired45-formal128m-repeat",
+    "bytes": 9043968,
+    "seconds": 25.005479749990627,
+    "error": "TimeoutError",
+    "minimum_five_second_window": {
+      "mbps": 0.9581530451488489,
+      "seconds": 5.47186070799944,
+      "ending_at": 17.62368108300143
+    },
+    "complete": false,
+    "source_log": "bbr-wired45-formal128m-repeat.log",
+    "minimum_five_second_window_mbps": 0.9581530451488489
+  },
+  {
+    "label": "bbr-wired45-source-recheck64",
+    "bytes": 67108864,
+    "seconds": 4.546597290987847,
+    "mbps": 118.0819143723532,
+    "ttfb": 0.34044266599812545,
+    "body_seconds": 4.206154624989722,
+    "body_mbps": 127.63936656306635,
+    "window_scope": "after_response_headers",
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+    ],
+    "minimum_five_second_window": null,
+    "complete": true,
+    "source_log": "bbr-wired45-source-recheck64.log"
+  },
+  {
+    "label": "bbr-wired45-wifi50-128m",
+    "bytes": 134217728,
+    "seconds": 8.653807333001168,
+    "mbps": 124.07738960229692,
+    "ttfb": 0.42170000000623986,
+    "body_seconds": 8.232107332994929,
+    "body_mbps": 130.4334091583523,
+    "window_scope": "after_response_headers",
+    "sha256": "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 127.5006008709706,
+      "seconds": 5.04136516698054,
+      "ending_at": 5.46306516698678
+    },
+    "complete": true,
+    "source_log": "bbr-wired45-wifi50-128m.log",
+    "minimum_five_second_window_mbps": 127.5006008709706
+  },
+  {
+    "label": "bbr-wired45-wifi50-512m-repeat",
+    "bytes": 536870912,
+    "seconds": 33.59300995798549,
+    "mbps": 127.8530057702981,
+    "ttfb": 0.43252508298610337,
+    "body_seconds": 33.16048487499938,
+    "body_mbps": 129.5206421796955,
+    "window_scope": "after_response_headers",
+    "sha256": "54efca4e90d62050e46a30e90b9b56ccbdd3a058e0b6603e0f21ef72f4a33ccb",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "54efca4e90d62050e46a30e90b9b56ccbdd3a058e0b6603e0f21ef72f4a33ccb"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 111.11493260436798,
+      "seconds": 5.001535499992315,
+      "ending_at": 28.69514270799118
+    },
+    "complete": true,
+    "source_log": "bbr-wired45-wifi50-512m-repeat.log",
+    "minimum_five_second_window_mbps": 111.11493260436798
+  },
+  {
+    "label": "bbr-wired45-wifi50-512m",
+    "bytes": 11403264,
+    "seconds": 50.007926125021186,
+    "error": "TimeoutError",
+    "minimum_five_second_window": {
+      "mbps": 0.5632866000530536,
+      "seconds": 5.584595833992353,
+      "ending_at": 28.854590041999472
+    },
+    "complete": false,
+    "source_log": "bbr-wired45-wifi50-512m.log",
+    "minimum_five_second_window_mbps": 0.5632866000530536
+  },
+  {
+    "label": "bbr-wired45-wifi50-formal900m",
+    "bytes": 943718400,
+    "seconds": 61.070441874995595,
+    "mbps": 123.6235888951564,
+    "ttfb": 0.4261537909915205,
+    "body_seconds": 60.644288084004074,
+    "body_mbps": 124.49230485717203,
+    "window_scope": "after_response_headers",
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 91.41368603751184,
+      "seconds": 5.001211041992065,
+      "ending_at": 13.915283832990099
+    },
+    "complete": true,
+    "source_log": "bbr-wired45-wifi50-formal900m.log",
+    "minimum_five_second_window_mbps": 91.41368603751184
+  },
+  {
+    "label": "cubic-original-source-recheck64",
+    "bytes": 67108864,
+    "seconds": 5.5363125409930944,
+    "mbps": 96.97265246945342,
+    "ttfb": 0.3406612499966286,
+    "body_seconds": 5.195651290996466,
+    "body_mbps": 103.33082070583578,
+    "window_scope": "after_response_headers",
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 102.39889117523748,
+      "seconds": 5.017654333001701,
+      "ending_at": 5.35831558299833
+    },
+    "complete": true,
+    "source_log": "cubic-original-source-recheck64.log",
+    "minimum_five_second_window_mbps": 102.39889117523748
+  },
+  {
+    "label": "formal-cdn17-small64",
+    "bytes": 67108864,
+    "seconds": 5.215837499999907,
+    "mbps": 102.93091224563832,
+    "ttfb": 0.4287623340205755,
+    "body_seconds": 4.787075165979331,
+    "body_mbps": 112.15009027128319,
+    "window_scope": "after_response_headers",
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+    ],
+    "minimum_five_second_window": null,
+    "complete": true,
+    "source_log": "formal-cdn17-small64.log"
+  },
+  {
+    "label": "formal-cdn18-small64",
+    "bytes": 67108864,
+    "seconds": 5.497139249986503,
+    "mbps": 97.6636915285197,
+    "ttfb": 0.36356254198472016,
+    "body_seconds": 5.133576708001783,
+    "body_mbps": 104.58028437817464,
+    "window_scope": "after_response_headers",
+    "sha256": "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.18",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "ba9f9875b788c361157eb136adc908d91af473378209d3b8689135103e3c30b5"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 103.5554263385828,
+      "seconds": 5.002118791016983,
+      "ending_at": 5.365681333001703
+    },
+    "complete": true,
+    "source_log": "formal-cdn18-small64.log",
+    "minimum_five_second_window_mbps": 103.5554263385828
+  },
+  {
+    "label": "bbr-wired45-wifi50-formal900m-repeat",
+    "bytes": 943718400,
+    "seconds": 60.70001495798351,
+    "mbps": 124.37801218378492,
+    "ttfb": 0.410853582987329,
+    "body_seconds": 60.28916137499618,
+    "body_mbps": 125.22561315857212,
+    "window_scope": "after_response_headers",
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b",
+    "http_status": 206,
+    "cdn_ip": "39.173.161.17",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 110.28693475918902,
+      "seconds": 5.001054541993653,
+      "ending_at": 58.56827683298616
+    },
+    "complete": true,
+    "source_log": "bbr-wired45-wifi50-formal900m-repeat.log",
+    "minimum_five_second_window_mbps": 110.28693475918902
+  },
+  {
+    "label": "preferred-cdn-dns900-formal",
+    "bytes": 943718400,
+    "seconds": 58.875641958002234,
+    "mbps": 128.23209987902064,
+    "ttfb": 0.5118682079773862,
+    "body_seconds": 58.36377375002485,
+    "body_mbps": 129.3567347501546,
+    "window_scope": "after_response_headers",
+    "sha256": "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b",
+    "http_status": 206,
+    "cdn_ip": "cdnfhnfile.115cdn.net",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "663dbca8be7ee24256421ecc94b3f7fd363ebd45fd1cee7489679c78ed42d12b"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 112.17354388209617,
+      "seconds": 5.010421500017401,
+      "ending_at": 24.102071375004016
+    },
+    "complete": true,
+    "source_log": "preferred-cdn-dns900-formal.log",
+    "minimum_five_second_window_mbps": 112.17354388209617
+  },
+  {
+    "label": "formal-cdn-dns384",
+    "bytes": 205389824,
+    "seconds": 40.00465670900303,
+    "error": "TimeoutError",
+    "minimum_five_second_window": {
+      "mbps": 26.787216770919958,
+      "seconds": 5.0105141249950975,
+      "ending_at": 39.97664466701099
+    },
+    "complete": false,
+    "source_log": "formal-cdn-dns384.log",
+    "minimum_five_second_window_mbps": 26.787216770919958
+  },
+  {
+    "label": "preferred-cdn-dns128",
+    "bytes": 134217728,
+    "seconds": 9.318549041985534,
+    "mbps": 115.22628889563843,
+    "ttfb": 0.49833366699749604,
+    "body_seconds": 8.820215374988038,
+    "body_mbps": 121.73646315314112,
+    "window_scope": "after_response_headers",
+    "sha256": "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046",
+    "http_status": 206,
+    "cdn_ip": "cdnfhnfile.115cdn.net",
+    "openssl": "OpenSSL 3.5.8 25 Aug 2026",
+    "requests": 1,
+    "per_request_sha256": [
+      "2cd5b414396a50d958697b2f9c456298468f7a94b272ac844edf09282327a046"
+    ],
+    "minimum_five_second_window": {
+      "mbps": 112.60991760716345,
+      "seconds": 5.046875125000952,
+      "ending_at": 5.545208791998448
+    },
+    "complete": true,
+    "source_log": "preferred-cdn-dns128.log",
+    "minimum_five_second_window_mbps": 112.60991760716345
+  }
+]
