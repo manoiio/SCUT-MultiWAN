@@ -12,6 +12,7 @@ DEV="$1"
 
 mw_require_active || exit $?
 mw_portal_lock 30 || exit $?
+mw_login_paused usb || exit $?
 . "$CONF"
 
 USER="${USB_USER:-$NATIVE_USER}"

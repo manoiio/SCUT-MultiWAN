@@ -1,0 +1,5 @@
+db2561231a9a326378d5d3fe10c00dc4a03f1a042616a44e522802e0196ae0fc  usr/bin/scutclient-wired
+41f9c0a1b706ceadbcce7b826c8930f15dd213eb99c057fab70f678ef5c9cb72  usr/bin/scut-wired-gate
+c34b985a37abad8925eb16a4c4f3a144de4d10e77d2286e3a1c0d14ee5601c5b  usr/bin/scut-wired-route-recover
+fa9ea8c86b3783d7a73645b853aba4dbd46f3c005026b1ae592977b8c9642b08  usr/bin/scut-reboot-watch
+b11d5dd1d5e844158f2fd8aac69d6c99799e7a32162015c97a6628946e4b298a  etc/init.d/scut-reboot-watch

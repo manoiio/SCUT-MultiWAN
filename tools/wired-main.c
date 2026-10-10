@@ -46,14 +46,18 @@ int wired_renew(void) {
     return 0;
 }
 
-static void refresh_routes(void) {
+static void refresh_routes(int recover) {
     /* Route checks are independent of the heartbeat loop. */
+    char owner[32];
+    snprintf(owner,sizeof(owner),"%ld",(long)getpid());
     pid_t pid = fork();
     if (pid == 0) {
         if (fork() != 0) _exit(0);
         setsid();
         /* Route helpers must not keep the engine/socket/transaction alive. */
         for (int fd=3; fd<64; fd++) close(fd);
+        if (recover)
+            execl("/usr/bin/scut-wired-route-recover", "scut-wired-route-recover", owner, (char*)NULL);
         execl("/usr/bin/dualwan-refresh", "dualwan-refresh", "force", (char*)NULL);
         _exit(1);
     }
@@ -67,7 +71,7 @@ void wired_ready(void) {
     if (wired_gate(action)) return;
     syslog(LOG_INFO,"UDP heartbeat complete; existing session maintained");
     flock(9, LOCK_UN); close(9); locked = 0;
-    if (!announced) { announced=1; refresh_routes(); }
+    if (!announced) { announced=1; refresh_routes(1); }
 }
 
 void wired_finish(void) {
@@ -106,6 +110,7 @@ static int release_only(void) {
     locked=1;
     int rc=wired_gate("cleanup");
     if (rc) return rc;
+    deadline=wired_now()+15;
     rc=wired_gate("needs-release");
     if (rc==1) return 0;
     if (rc) return rc;
@@ -136,7 +141,7 @@ int main(int argc, char **argv) {
     int rc = Authentication(1);
     syslog(LOG_INFO,"attempt exited code=%d",rc);
     close(9);
-    refresh_routes();
+    refresh_routes(0);
     memset(pass,0,sizeof(pass));
     return rc == 75 || rc == 76 ? rc : (rc ? 1 : 0);
 }

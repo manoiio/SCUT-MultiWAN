@@ -1,0 +1,82 @@
+#!/bin/sh
+umask 077
+. /usr/lib/scut-multiwan/common.sh || exit 1
+END=32400
+INTERVAL=600
+MAX_ATTEMPTS=12
+save_state() {
+    printf '%s %s %s %s\n' "$day" "$attempts" "$next" "$outcome" > "$state.new" && mv "$state.new" "$state"
+}
+due() {
+    local slot day target state saved attempts next outcome extra now rc
+    slot=$1
+    mkdir -p /tmp/scut-multiwan-locks /etc/scut-multiwan || return 1
+    exec 4>>"/tmp/scut-multiwan-locks/morning-$slot"
+    flock -n 4 || return 75
+    mw_clock && mw_morning_time || return 76
+    day=$MW_DATE
+    case "$slot" in native) target=$MW_NATIVE_START;; usb) target=$MW_USB_START;; wan) target=$MW_WAN_START;; esac
+    [ "$MW_SECONDS" -ge "$target" ] && [ "$MW_SECONDS" -lt "$END" ] || return 0
+    [ "$(cat "/etc/scut-multiwan/$slot.morning-cancelled" 2>/dev/null)" != "$day" ] || return 0
+    state="/etc/scut-multiwan/$slot.morning-state"
+    saved=; attempts=0; next=$target; outcome=waiting; extra=
+    if [ -e "$state" ]; then
+        read -r saved attempts next outcome extra < "$state" || return 75
+        case "$attempts:$next" in *[!0-9:]*|:*) return 75;; esac
+        [ -n "$attempts" ] && [ -n "$next" ] && [ -z "$extra" ] || return 75
+        [ "$attempts" -le "$MAX_ATTEMPTS" ] && [ "$next" -le 33000 ] || return 75
+        case "$outcome" in waiting|running|success|failed|deferred) ;; *) return 75;; esac
+        if [ "$saved" != "$day" ]; then attempts=0; next=$target; outcome=waiting; fi
+    fi
+    [ "$MW_SECONDS" -ge "$next" ] || return 0
+    # Skip authentication when a fresh interface-bound public check succeeds.
+    if MW_MORNING_LOGIN=1 MW_MORNING_DAY="$day" /usr/bin/scut-lan-links check "$slot" >/dev/null 2>&1; then
+        [ "$outcome" = success ] || { outcome=success; save_state || return 1; }
+        printf '%s\n' "$day" > "/etc/scut-multiwan/$slot.morning-claimed.new" &&
+            mv "/etc/scut-multiwan/$slot.morning-claimed.new" "/etc/scut-multiwan/$slot.morning-claimed" || return 1
+        return 0
+    fi
+    [ "$attempts" -lt "$MAX_ATTEMPTS" ] || return 0
+    mw_require_active 300 || return $?
+    # Persist admission before submission, including its reboot-safe cooldown.
+    now=$MW_SECONDS; attempts=$((attempts+1)); next=$((now+INTERVAL)); outcome=running
+    save_state || return 1
+    printf '%s\n' "$day" > "/etc/scut-multiwan/$slot.morning-claimed.new" &&
+        mv "/etc/scut-multiwan/$slot.morning-claimed.new" "/etc/scut-multiwan/$slot.morning-claimed" || return 1
+    logger -t scut-morning "$slot attempt=$attempts local_seconds=$now deadline=32400"
+    /usr/bin/scut-lan-links morning "$slot" >/dev/null 2>&1; rc=$?
+    case "$rc" in 0) outcome=success;; 75|76) outcome=deferred;; *) outcome=failed;; esac
+    save_state || return 1
+    logger -t scut-morning "$slot attempt=$attempts outcome=$outcome rc=$rc next=$next"
+    return 0
+}
+case "${1:-}" in
+    schedule|retry)
+        [ "$#" = 1 ] || exit 2
+        mw_clock && mw_morning_time || exit 76
+        [ "$MW_SECONDS" -lt "$END" ] || exit 0
+        if [ "$1" = retry ]; then
+            [ "$MW_SECONDS" -ge 25200 ] || exit 0
+            command=due
+        else command=slot; fi
+        for slot in native usb wan; do
+            setsid sh -c 'trap "" HUP; exec "$@"' sh "$0" "$command" "$slot" >/dev/null 2>&1 </dev/null &
+        done;;
+    slot)
+        [ "$#" = 2 ] || exit 2
+        case "$2" in native|usb|wan) slot=$2;; *) exit 2;; esac
+        mw_clock && mw_morning_time || exit 76
+        day=$MW_DATE
+        case "$slot" in native) target=$MW_NATIVE_START;; usb) target=$MW_USB_START;; wan) target=$MW_WAN_START;; esac
+        while [ "$MW_SECONDS" -lt "$target" ]; do
+            remaining=$((target-MW_SECONDS)); [ "$remaining" -le 15 ] || remaining=15
+            sleep "$remaining"
+            mw_clock || exit 76
+            [ "$MW_DATE" = "$day" ] || exit 76
+        done
+        due "$slot";;
+    due)
+        [ "$#" = 2 ] || exit 2
+        case "$2" in native|usb|wan) due "$2";; *) exit 2;; esac;;
+    *) exit 2;;
+esac

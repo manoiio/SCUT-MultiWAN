@@ -1,0 +1,35 @@
+Thu Oct  8 20:13:11 CST 2026
+{"mode":"wired","ready":true,"persistent":true,"available_wans":3}
+{"links":[{"slot":"native","device":"phy2-sta0","radio":"radio2","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok"},{"slot":"usb","device":"phy3-sta0","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok"},{"slot":"wan","device":"wan","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"none"}],"morning":{"date":"2026-10-08","native":26249,"usb":25823,"wan":26594}}
+default 
+	nexthop via 10.195.79.254 dev phy2-sta0 weight 1 
+	nexthop via 10.195.95.254 dev phy3-sta0 weight 1 
+	nexthop via 110.64.88.254 dev wan weight 1 
+10.195.64.0/20 dev phy2-sta0 scope link 
+10.195.80.0/20 dev phy3-sta0 scope link 
+110.64.88.0/24 dev wan scope link 
+default via 110.64.88.254 dev wan metric 10 onlink 
+unreachable default metric 32767 
+192.168.1.0/24 dev br-lan scope link 
+0 7 * * * /usr/bin/scut-morning-start schedule >/dev/null 2>&1
+1e642942-ec2c-4fc7-84e2-302aa6be4648
+-rw-r--r--    1 root     root            29 Oct  8 20:09 /root/scut-lan-login-backup-20261008/confirmed
+17ac9686d2f3c74e45e574e8175a1361d97f528afb19f518b9c6eefb77426f6e  /usr/lib/scut-multiwan/wireless-control.sh
+1dfd3d2f39562a2cb5c76706717185dfab13bb060cdfeee57feb21d6f5bba677  /usr/lib/scut-multiwan/common.sh
+3b88d360cf2cae8ecdf177bbdccc4f6c3a488d3e6c4480a81bae64f7acb2b8b6  /usr/bin/campus-portal-login.impl
+b282e442170e2baddaa19a5cbb23e4e167c291f87adb1c16bf9b0a2ff8bac2c0  /usr/bin/campus-usb-login.impl
+5d1c40797db19f808120735e2cb2cba1e113c774db46c6904c9237d6b3096eef  /usr/bin/campus-portal-logout.impl
+93deba036b4801d3cd8f7c440b212addb8fb17f0f844aa66c80f4479fa197f01  /usr/bin/campus-usb-logout.impl
+7645ec4d29d727ba821a27ca353149a65cc4374007fce26eb882c8babb6a3559  /usr/bin/native-watchdog
+79914a24f9cd89e18d2fc8fb3ddb30df01e2a62a52b11699249e9a457db5d4a4  /usr/bin/usb-watchdog
+a236272f4494493f59a337b9556fe94235b2c02b89d101b21684fd29f7bf318d  /usr/bin/native-best
+657baf9ceb307983509e04eb6ca813675235bb8910e42efc3a3222eeb401738d  /usr/bin/scut-night-watchdog
+3969b86ecef4a7726c735c45ff01378c75d5d5a90ff8a2fd805bc81f64c7ca61  /usr/lib/scut-multiwan/wired-run
+0ffccb0ecd304634876b6b0b0f1d03436f27eccdd65ef405decdd53728eccf78  /usr/bin/scut-lan-mode
+a3e65a301e35bfb973598ad3f37efe47997cfee260f47caf414d57982db2701b  /usr/bin/scut-lan-links
+2aef8507a4d01857d898115e330f688a74d91b968da5e1222246d8e30d579275  /usr/bin/scut-morning-start
+a64dd6524b80b2d814aa9dcad24a7e881464aba15758972085233a3df3bab870  /etc/init.d/scut-lan-mode
+16e1757b7b60227ed79b1c3c13ed2b033528d5e80d19ac562d27f9f7bd5dcc56  /usr/libexec/scut-lan-link-status
+8afa82918461873e4f43b8988dbc1303f6be2bb56c43b528ff3bebcce0fb22f3  /usr/libexec/scut-lan-link-action
+7ad4a61eae40d09b4c15e1320ba1d4f584e4f52515e82e53c68bccc306d17675  /usr/share/rpcd/acl.d/luci-app-scut-lan.json
+e4ee34c92b1ddacc3c975458c7f10a09efecc48e5c87b96ea148db46cf21dab2  /www/luci-static/resources/view/network/scut_lan.js

@@ -7,6 +7,7 @@ static int frame_len, peer_port=61440;
 static time_t mock_now=100;
 static int stopping, checks;
 static int logoff_mode, broadcast_sends, start_sends, target_sends, credential_sends;
+static int expiry, release_checks;
 time_t wired_now(void) { return mock_now; }
 int wired_stopping(void) { return stopping; }
 int wired_pending_poll(void);
@@ -14,8 +15,14 @@ LOGLEVEL cloglev=NONE;
 void syslog(int priority,const char *format,...) { (void)priority;(void)format; }
 int LogWrite(LOGTYPE t,LOGLEVEL l,char *f,...) { (void)t;(void)l;(void)f;return 0; }
 int wired_begin(void) { return 0; }
-int wired_gate(const char *a) { (void)a;return 0; }
-int wired_expired(void) { return 0; }
+int wired_gate(const char *a) {
+    if (!strcmp(a,"release-window")) {
+        release_checks++;
+        if (logoff_mode==11) return 76;
+    }
+    return 0;
+}
+int wired_expired(void) { return expiry; }
 int wired_locked(void) { return locked; }
 int wired_renew(void) { renew_calls++; if(!renew_rc) locked=1; return renew_rc; }
 void wired_ready(void) { ready_calls++;locked=0; }
@@ -36,10 +43,15 @@ int select(int n,fd_set *r,fd_set *w,fd_set *e,struct timeval *t) {
     mock_now++;
     if (logoff_mode>=5) {
         if (!start_sends) return 0;
+        if (logoff_mode==8 && start_sends<2) return 0;
+        if (logoff_mode==10) return 0;
+        if (logoff_mode==12) { stopping=1;return 0; }
+        if (logoff_mode==13) { expiry=1;return 0; }
         memset(frame,0,sizeof(frame));frame[12]=0x88;frame[13]=0x8e;
         frame[6]=2;frame[18]=1;frame[21]=5;frame[22]=1;frame_len=23;
         if (target_sends) { frame[18]=4;frame[21]=4;frame_len=22; }
         if (logoff_mode==6 && target_sends) return 0;
+        if (logoff_mode==9 && target_sends<2 && target_sends) return 0;
         if (logoff_mode==7 && target_sends) frame[6]=4;
         return 1;
     }
@@ -61,7 +73,7 @@ ssize_t recvfrom(int s,void *b,size_t n,int f,struct sockaddr *a,socklen_t *l) {
     memset(p,0,sizeof(*p));p->sin_port=htons(peer_port);*l=sizeof(*p);
     memcpy(b,frame,frame_len);return frame_len;
 }
-static void reset(void) { locked=0;renew_rc=0;renew_calls=0;sends=0;broadcast_sends=0;start_sends=0;target_sends=0;credential_sends=0;memset(frame,0,sizeof(frame)); }
+static void reset(void) { locked=0;renew_rc=0;renew_calls=0;sends=0;broadcast_sends=0;start_sends=0;target_sends=0;credential_sends=0;stopping=0;expiry=0;release_checks=0;logoff_mode=0;memset(frame,0,sizeof(frame)); }
 #define CHECK(x) do { checks++; if(!(x)) { printf("FAIL line %d\n",__LINE__);return 1; } } while(0)
 int main(void) {
     unsigned char packet[ETH_FRAME_LEN]={0};
@@ -117,9 +129,22 @@ int main(void) {
     reset();locked=1;broadcast_sends=0;start_sends=0;target_sends=0;credential_sends=0;logoff_mode=5;
     CHECK(auth_8021x_Logoff()==1 && target_sends==1 && start_sends==1 && credential_sends==0);
     reset();locked=1;broadcast_sends=0;start_sends=0;target_sends=0;logoff_mode=6;
-    CHECK(auth_8021x_Logoff()==0 && target_sends==1 && credential_sends==0);
+    CHECK(auth_8021x_Logoff()==0 && target_sends==3 && start_sends==1 && credential_sends==0);
     reset();locked=1;broadcast_sends=0;start_sends=0;target_sends=0;logoff_mode=7;
-    CHECK(auth_8021x_Logoff()==0 && target_sends==1 && credential_sends==0);
+    CHECK(auth_8021x_Logoff()==0 && target_sends==3 && start_sends==1 && credential_sends==0);
+    reset();locked=1;logoff_mode=8;
+    CHECK(auth_8021x_Logoff()==1 && start_sends==2 && target_sends==1 && credential_sends==0);
+    reset();locked=1;logoff_mode=9;
+    CHECK(auth_8021x_Logoff()==1 && start_sends==1 && target_sends==2 && credential_sends==0);
+    reset();locked=1;logoff_mode=10;
+    time_t before=mock_now;
+    CHECK(auth_8021x_Logoff()==0 && start_sends==3 && mock_now-before<=13 && credential_sends==0);
+    reset();locked=1;logoff_mode=11;
+    CHECK(auth_8021x_Logoff()==0 && start_sends==0 && release_checks==1 && credential_sends==0);
+    reset();locked=1;logoff_mode=12;
+    CHECK(auth_8021x_Logoff()==0 && start_sends==1 && target_sends==0 && credential_sends==0);
+    reset();locked=1;logoff_mode=13;
+    CHECK(auth_8021x_Logoff()==0 && start_sends==1 && target_sends==0 && credential_sends==0);
     reset();broadcast_sends=0;logoff_mode=3;
     CHECK(auth_8021x_Logoff()==0 && start_sends==0);
     reset();broadcast_sends=0;logoff_mode=4;

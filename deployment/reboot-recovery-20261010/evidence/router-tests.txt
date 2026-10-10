@@ -1,0 +1,223 @@
+PASS 1: all mutation entry points silent at 00 06 00
+PASS 2: all mutation entry points silent at 01 00 00
+PASS 3: all mutation entry points silent at 06 59 59
+PASS 4: 00:05:59 outside quiet window (operation margins still apply)
+PASS 5: pre-boundary operation margin
+PASS 6: active after new end at 07 00 00
+PASS 7: active after new end at 07 29 59
+PASS 8: native-best status is read-only
+PASS 9: QCA helper refuses phy3
+PASS 10: HTTPS redirect and wrong Portal host do not authorize login
+PASS 11: confirmed release before login; password on stdin; journal before request
+PASS 12: failed release blocks login
+PASS 13: ambiguous login retains journal and is released before retry
+PASS 14: missing journal fails closed
+PASS 15: a changed lease releases the old journal IP/MAC via a verified peer
+PASS 16: Native switch is serialized, old release precedes new login
+PASS 17: Native switch aborts on old release failure
+PASS 18: failed candidate Internet verification releases candidate before old login
+PASS 19: uncertain candidate release blocks rollback login
+PASS 20: watchdog preserves failure and does not postpone retry
+PASS 21: successful scan records monotonic timestamp
+PASS 22: healthy ECMP refresh does not flush routes or remove valid rule
+PASS 23: failed ECMP installation removes policy
+PASS 24: USB-only fallback
+PASS 25: Native-only fallback
+PASS 26: both unhealthy removes policy
+PASS 27: QCA TX above 9 is capped at 9
+PASS 28: two fresh low RX rounds downgrade QCA to MCS7
+PASS 29: overnight sampling gap resets QCA promotion timer
+PASS 30: five-minute good candidate promotes and verifies MCS9
+PASS 31: failed MCS9 validation returns to MCS7
+PASS 32: failed rate rollback reports failure
+PASS 33: same-BSSID counter reset cancels promotion timer
+PASS 34: TX failure burst downgrades even with zero successful packets
+PASS 35: RX zero at association age 0 keeps MCS9
+PASS 36: RX zero at association age 10 keeps MCS9
+PASS 37: RX zero at association age 14 keeps MCS9
+PASS 38: RX zero at age 15 retains conservative downgrade
+PASS 39: RX zero at age missing retains conservative downgrade
+PASS 40: RX zero at age invalid retains conservative downgrade
+PASS 41: warmup still downgrades for gateway loss
+PASS 42: warmup still downgrades for TX failure burst
+PASS 43: same-BSSID warmup cannot inherit promotion timer
+PASS 44: radio2 warmup protects RX initialization
+PASS 45: USB DHCP replacement releases the old IP/MAC through healthy Native before login
+PASS 46: single-WAN route installation failure is checked
+PASS 47: one empty radio scan still surveys the other
+PASS 48: scan deadline terminates a TERM-ignoring child in BusyBox ash
+PASS 49: nested Portal wrapper reuses inherited kernel lock
+PASS 50: concurrent losers cannot remove winner lock; SIGKILL releases it
+PASS 51: official make-up Saturday stays quiet
+PASS 52: ordinary rest Sunday allows low-cost health check without scanning or tuning
+PASS 53: official weekday holiday allows overnight health check
+PASS 54: 00:24:59 blocks login but allows holiday route-only health convergence
+PASS 55: holiday night never starts an optimization scan/switch
+PASS 56: night route refresh keeps only the healthy USB link
+PASS 57: both night WANs down removes policy without authentication
+PASS 58: independent HTTPS fallback prevents login on primary-site failure
+PASS 59: 00:25 recovers expired authentication and journals an attempt before any write
+PASS 60: Portal success without HTTPS, 15-minute cooldown and durable two-attempt cap
+PASS 61: 07:00 daytime authentication is not blocked by night quota
+PASS 62: old-session release failure blocks subsequent night recovery
+PASS 63: USB timeout consumes attempt and retains occupied session journal
+PASS 64: plain failure without exact Portal redirect does not spend auth budget
+PASS 65: missing annual cache fails closed even on Sunday
+PASS 66: unpublished next-year weekend is not guessed
+PASS 67: uninitialized router clock fails closed
+PASS 68: date override quiet takes precedence; clear restores calendar without touching ledgers
+PASS 69: allow override expires across midnight and retains ordinary-workday silence
+PASS 70: corrupt budget record refuses any Portal mutation
+PASS 71: 07:00 still dispatches forced complete comparison
+PASS 72: official search and HTML parsing install a complete holiday/workday cache
+PASS 73: unrecognized official HTML retains last good cache
+PASS 74: official fetch failure retains last good cache
+PASS 75: missing next-year notice leaves current-year calendar usable
+PASS 76: calendar updater never fetches during overnight period
+PASS 77: announced day-count mismatch rejects entire annual update
+PASS 78: explicit cross-year leave range parses without calendar guessing
+PASS 79: missing holiday section rejects whole cache replacement
+PASS 80: night budget cannot be claimed without the actual kernel Portal lock
+PASS 81: manual policy override waits for Portal transaction completion
+PASS 82: three healthy WANs use table 103 with equal weights
+PASS 83: unhealthy wired link retains existing wireless ECMP
+PASS 84: wired-only healthy fallback works
+PASS 85: all three down removes policy
+PASS 86: three-way installation error fails closed
+PASS 87: wired admission requires actual inherited global lock
+PASS 88: release discovery retry requires the inherited real Portal lock
+PASS 89: release retry stops before quiet boundary without consuming an attempt
+PASS 90: release retry is permitted with sufficient active time remaining
+PASS 91: release retries cannot authenticate or release during working-night silence
+PASS 92: wired authentication respects midnight protection
+PASS 93: wired night attempts persist, require 15 minutes and stop at two
+PASS 94: approved temporary wired cap preserves attempts/cooldown and expires safely
+PASS 95: 07:00 wired recovery bypasses night attempt cap
+PASS 96: uncertain wired release blocks the remaining night attempts
+PASS 97: corrupt wired session fails closed
+PASS 98: changed wired IP cannot bypass release protection
+PASS 99: assigned wired IP must match before authentication
+PASS 100: unplugged wired port cannot authenticate
+PASS 101: unlocked preflight is read-only and consumes no attempt
+PASS 102: wired journal records target before login and clears only after release
+PASS 103: wired engine readiness is required even when HTTPS works
+PASS 104: wired readiness rejects reused process IDs
+PASS 105: existing EAP challenge allows holiday protection but refuses working nights
+PASS 106: procd wrapper stop terminates protocol child without orphaning it
+PASS 107: daytime primary failure uses independent fallback HTTPS
+PASS 108: unchanged actual topology skips route writes but still probes
+PASS 109: removed link requires two successful rounds across 30 seconds
+PASS 110: holiday route recovery accepts the next 15-minute health round
+PASS 111: one valid RX sample cannot downgrade TX
+PASS 112: association change during sampling cancels state commit
+PASS 113: holiday night has no fast rate tuning
+PASS 114: failed scans back off, while forced morning checks bypass backoff
+PASS 115: promotion preserves the verified candidate DHCP lease
+PASS 116: DNS outage can use recent verified IP while retaining TLS host validation
+PASS 117: expired CDN resolution cannot become a permanent pinned target
+PASS 118: overlapping periodic requests are coalesced within 20 seconds
+PASS 119: native complete portal-small.json login retains normal transaction
+PASS 120: native complete portal-small.json logout confirms release
+PASS 121: native complete portal-boundary.json login retains normal transaction
+PASS 122: native complete portal-boundary.json logout confirms release
+PASS 123: native partial success curl=63 retains login journal without retry
+PASS 124: native partial success curl=63 cannot confirm release
+PASS 125: native partial success curl=28 retains login journal without retry
+PASS 126: native partial success curl=28 cannot confirm release
+PASS 127: native partial success curl=18 retains login journal without retry
+PASS 128: native partial success curl=18 cannot confirm release
+PASS 129: native oversized release containing success prevents subsequent login
+PASS 130: native oversized login preserves uncertain occupied session
+PASS 131: native complete rejection preserves existing release behavior
+PASS 132: usb complete portal-small.json login retains normal transaction
+PASS 133: usb complete portal-small.json logout confirms release
+PASS 134: usb complete portal-boundary.json login retains normal transaction
+PASS 135: usb complete portal-boundary.json logout confirms release
+PASS 136: usb partial success curl=63 retains login journal without retry
+PASS 137: usb partial success curl=63 cannot confirm release
+PASS 138: usb partial success curl=28 retains login journal without retry
+PASS 139: usb partial success curl=28 cannot confirm release
+PASS 140: usb partial success curl=18 retains login journal without retry
+PASS 141: usb partial success curl=18 cannot confirm release
+PASS 142: usb oversized release containing success prevents subsequent login
+PASS 143: usb oversized login preserves uncertain occupied session
+PASS 144: usb complete rejection preserves existing release behavior
+PASS 145: healthy HT association does not reconnect
+PASS 146: confirmed mature legacy association repairs on first check
+PASS 147: confirmed Native legacy association recovers without auth or full scan
+PASS 148: USB recovery excludes QCA bitrate control
+PASS 149: USB can recover with radio2 as the remaining healthy Native uplink
+PASS 150: last healthy uplink can repair without a backup
+PASS 151: offline target can repair association without authentication
+PASS 152: new association receives 30 seconds before legacy recovery
+PASS 153: missing HT, stale or unrelated AP capabilities prevent recovery: ht
+PASS 154: missing HT, stale or unrelated AP capabilities prevent recovery: stale
+PASS 155: missing HT, stale or unrelated AP capabilities prevent recovery: unrelated
+PASS 156: holiday night forbids legacy reassociation
+PASS 157: working night forbids legacy reassociation
+PASS 158: uncertain or rejected request retains one-minute retry delay
+PASS 159: accepted request without HT restoration is not called successful
+PASS 160: IP change defers safely without replacing the persistent session
+PASS 161: reassociation requires exact recorded session IP and device
+PASS 162: child recovery reuses the actual watchdog operation lock
+PASS 163: QCA lock contention defers reassociation
+PASS 164: another Portal transaction prevents reassociation
+PASS 165: legacy fallback allows 54 Mbps with retained MCS7 cap and no fake HE evidence
+PASS 166: brief normal association cannot erase the repair cooldown
+PASS 167: failed attempts back off 60/300/900 seconds with bounded counter
+PASS 168: all uplinks offline does not block wireless repair or invoke authentication
+PASS 169: global repair lock serializes Native and USB beyond Portal lock lifetime
+PASS 170: minute task repairs Native and USB sequentially without QCA tuning USB
+PASS 171: old RAM state migrates to one-minute delay without clearing recorded attempts
+PASS 172: successful recovery returns to one-minute guard and stable HT resets failure counter
+PASS 173: candidate retries transient QCA deferral before safe switch
+PASS 174: persistent candidate rate deferral bounded and cannot authenticate
+PASS 175: broken old path releases exact Native ledger IP via healthy USB
+PASS 176: unhealthy backup cannot bypass old-session release guard
+PASS 177: unreachable gateway DHCP reacquire preserves session and verifies public health
+PASS 178: reachable gateway public timeout does not trigger DHCP reacquire
+PASS 179: unreachable gateway recovery cannot repeat within five minutes
+PASS 180: night watchdog never enters daytime DHCP recovery
+PASS 181: verified successful switch clears earlier failed recovery backoff without fabricating a survey
+PASS 182: known exact offline message parsed without printing provider data
+PASS 183: generic failures, online results and truncated replies cannot release a session
+PASS 184: confirmed absence pauses automatically and retains journal
+PASS 185: Native login, watchdog and selection reject automatic admission while paused
+PASS 186: explicit manual admission clears only the twice-confirmed exact absent record
+PASS 187: timeout and contradictory online query retain journal during manual admission
+PASS 188: different source IP cannot confirm absence of a stale recorded IP
+PASS 189: three distinct independent 07:00-07:40 draws persist for the local date
+PASS 190: watchdogs and login guards wait for each independent morning time
+PASS 191: corrupt duplicate startup times fail closed
+PASS 192: manual RPC accepts only exact slot and operation enums
+PASS 193: USB automatic admission also stops before Portal requests
+PASS 194: manual wired logout survives procd retries without starting authentication
+PASS 195: detached worker survives command return without unavailable nohup and verifies login
+PASS 196: manual logout holds all three automatic authentication entry points
+PASS 197: confirmed explicit logout persists its hold and cannot be followed by watchdog login
+PASS 198: manual logout also cancels a not-yet-run morning attempt on the same date
+PASS 199: next-day morning attempts once and can resume a manually logged-out session
+PASS 200: 08:05 manual logout then verified manual login resumes watchdog on the same day
+PASS 201: three independent morning lines persist their first failed attempt and cooldown
+PASS 202: failed admissions wait ten minutes before retrying all three lines
+PASS 203: a new scheduler process preserves the prior date, count and cooldown
+PASS 204: publicly healthy lines do not consume authentication attempts
+PASS 205: manual logout cancels the remaining morning retries on that local date
+PASS 206: the next local date renews its attempt budget without erasing session journals
+PASS 207: 09:00 blocks both new scheduler admissions and in-progress worker mutation guards
+PASS 208: twelve-attempt budget and malformed persistent retry state fail closed
+PASS 209: lock/policy deferral retains its cooldown instead of spinning
+PASS 210: Native worker retains original stage/code without credential or response capture
+PASS 211: the already-selected Native radio recovers missing DHCP without authenticating or clearing its journal
+PASS 212: current-radio DHCP timeout remains bounded and stops authentication
+PASS 213: remote Native release selects the exact IP and hardware MAC with type 2 and preserves USB
+PASS 214: an addressless old interface never sends a source-local unbind
+PASS 215: incomplete lookup and invalid MAC cannot authorize any release
+PASS 216: a present target row without a MAC fails closed instead of being called absent
+PASS 217: result=1 cannot release a journal while the exact target remains listed
+PASS 218: a remote mutation timeout retains the occupied-slot journal
+PASS 219: manual admission reconciles a twice-absent target with positive peer controls and no mutation
+PASS 220: automatic remote absence pauses login and retains the session record
+PASS 221: a peer using another account cannot provide remote ownership confirmation
+PASS 222: changed source identity blocks remote release before mutation
+ALL 222 GROUPS PASSED

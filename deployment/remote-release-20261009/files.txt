@@ -1,0 +1,3 @@
+usr/lib/scut-multiwan/remote-release.sh
+usr/bin/campus-portal-logout.impl
+usr/bin/campus-usb-logout.impl

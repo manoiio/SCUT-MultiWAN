@@ -1,6 +1,7 @@
 #!/bin/sh
 umask 077
 . /usr/lib/scut-multiwan/common.sh || exit 1
+mw_login_paused wan || exit $?
 [ -f /etc/scut-wired.conf ] || exit 75
 . /etc/scut-wired.conf
 [ "$WIRED_ENABLE" = 1 ] || exit 75

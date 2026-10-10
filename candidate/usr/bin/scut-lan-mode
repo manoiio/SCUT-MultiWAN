@@ -1,0 +1,179 @@
+#!/bin/sh
+# Only LAN policy is changed; table103 and Portal/radio maintenance are untouched.
+set -u
+CFG=/etc/scut-lan/mode
+RUN=/var/run/scut-lan
+mkdir -p "$RUN"
+chmod 700 "$RUN"
+mode() { cat "$CFG" 2>/dev/null || echo multi; }
+status() {
+    m=$(mode); ready=false
+    count=$(ip -4 route show table 103 | awk '$1=="default"||$1=="nexthop"{for(i=1;i<NF;i++)if($i=="dev")a[$(i+1)]=1}END{for(i in a)n++;print n+0}')
+    case "$m" in
+        multi) [ "$count" -gt 0 ] && ready=true;;
+        wired) ip -4 route show table 106 | grep -q '^default .* dev wan' && ready=true;;
+        tunnel) [ -s "$RUN/tunnel.ready" ] && ip -4 route show table 106 | grep -q '^default dev scut-lan' && ready=true;;
+    esac
+    printf '{"mode":"%s","ready":%s,"persistent":true,"available_wans":%s}\n' "$m" "$ready" "$count"
+}
+lock() { exec 8>"$RUN/mode.lock"; flock -n 8; }
+guard() {
+    nft list table inet scut_lan_switch >/dev/null 2>&1 && return 0
+    nft -f - <<'NFT'
+table inet scut_lan_switch {
+ chain forward { type filter hook forward priority -20; policy accept;
+  iifname "br-lan" oifname != "br-lan" drop
+ }
+}
+NFT
+}
+unguard() { nft delete table inet scut_lan_switch >/dev/null 2>&1 || :; }
+rules() {
+    # Delete only our exact rule, never unrelated priorities or table103.
+    if [ "$1" = multi ]; then
+        ip -4 rule del pref 90 iif br-lan lookup 106 >/dev/null 2>&1 || :
+    elif ! ip -4 rule show | grep -q '^90:.*iif br-lan lookup 106'; then
+        ip -4 rule add pref 90 iif br-lan lookup 106 || return 1
+    fi
+    # Only the wired WAN currently has IPv6. Use it in multi/wired modes.
+    ip -6 rule show | grep -q '^90:.*iif br-lan lookup 106' || ip -6 rule add pref 90 iif br-lan lookup 106 || return 1
+    if [ "$1" = tunnel ]; then
+        ip -4 rule show | grep -q '^91:.*from 172.31.255.2 lookup 106' || ip -4 rule add pref 91 from 172.31.255.2/32 lookup 106
+    else
+        ip -4 rule del pref 91 from 172.31.255.2/32 lookup 106 >/dev/null 2>&1 || :
+    fi
+    proxy_table=106
+    [ "$1" != multi ] || proxy_table=103
+    if ! ip -4 rule show | grep -q "^94:.*fwmark 0x5343 lookup $proxy_table"; then
+        for table in 103 106; do
+            ip -4 rule del pref 94 fwmark 0x5343 lookup "$table" >/dev/null 2>&1 || :
+        done
+        ip -4 rule add pref 94 fwmark 0x5343 lookup "$proxy_table" || return 1
+    fi
+}
+routes() {
+    m=$1
+    ip -4 route replace table 106 unreachable default metric 32767 || return 1
+    ip -6 route replace table 106 unreachable default metric 32767 || return 1
+    ip -4 route replace table 106 192.168.1.0/24 dev br-lan scope link || return 1
+    ip -6 route replace table 106 fd57:7afa:61f9::/60 dev br-lan || return 1
+    good4=0; good6=0
+    case "$m" in
+        tunnel)
+            if [ -s "$RUN/tunnel.ready" ] && ip link show scut-lan >/dev/null 2>&1; then
+                ip -4 route replace table 106 default dev scut-lan metric 10 || return 1
+                ip -6 route replace table 106 default dev scut-lan metric 10 || return 1
+                good4=1; good6=1
+            fi;;
+        wired|multi)
+            gw=$(ip -4 route show table 103 | awk '{for(i=1;i<NF;i++)if($i=="dev"&&$(i+1)=="wan")for(j=1;j<NF;j++)if($j=="via")print $(j+1)}' | head -1)
+            if [ -n "$gw" ]; then
+                if [ "$m" = wired ]; then
+                    ip -4 route replace table 106 default via "$gw" dev wan onlink metric 10 || return 1
+                    good4=1
+                fi
+                gw6=$(ip -6 route show default dev wan | awk '{for(i=1;i<NF;i++)if($i=="via"){print $(i+1);exit}}')
+                if [ -n "$gw6" ]; then
+                    ip -6 route replace table 106 default via "$gw6" dev wan metric 10 || return 1
+                    good6=1
+                fi
+            fi;;
+    esac
+    [ "$good4" = 1 ] || ip -4 route del table 106 default metric 10 >/dev/null 2>&1 || :
+    [ "$good6" = 1 ] || ip -6 route del table 106 default metric 10 >/dev/null 2>&1 || :
+}
+firewall() {
+    m=$1
+    nft list table inet scut_lan_mode >/dev/null 2>&1 || nft add table inet scut_lan_mode || return 1
+    {
+        echo 'delete table inet scut_lan_mode'
+        echo 'table inet scut_lan_mode {'
+        echo 'chain dns { type nat hook prerouting priority -105; policy accept;'
+        [ "$m" = multi ] || echo 'iifname "br-lan" meta l4proto { tcp, udp } th dport 53 redirect to :1053'
+        echo '}'
+        echo 'chain forward { type filter hook forward priority -5; policy accept;'
+        case "$m" in
+            wired) echo 'iifname "br-lan" oifname != { "wan", "br-lan" } counter drop';;
+            tunnel) echo 'iifname "br-lan" oifname != { "scut-lan", "br-lan" } counter drop';;
+        esac
+        echo 'iifname "br-lan" tcp flags syn tcp option maxseg size set rt mtu'
+        echo '}'
+        echo 'chain postnat { type nat hook postrouting priority 95; policy accept;'
+        echo 'oifname "scut-lan" ip saddr 192.168.1.0/24 masquerade'
+        echo 'oifname "scut-lan" ip6 saddr fd57:7afa:61f9::/60 masquerade'
+        echo 'oifname "wan" ip6 saddr fd57:7afa:61f9::/60 masquerade'
+        echo '}'
+        echo '}'
+    } > "$RUN/firewall.nft"
+    nft -c -f "$RUN/firewall.nft" && nft -f "$RUN/firewall.nft"
+}
+dns() {
+    m=$1
+    if [ "$m" = multi ]; then /etc/init.d/scut-lan-dns stop; return 0; fi
+    {
+        echo 'port=1053'
+        echo 'interface=br-lan'
+        echo 'bind-dynamic'
+        echo 'no-resolv'
+        echo 'cache-size=300'
+        echo 'edns-packet-max=1232'
+        echo 'server=/lan/127.0.0.1#53'
+        echo 'server=/1.168.192.in-addr.arpa/127.0.0.1#53'
+        case "$m" in
+            tunnel) echo 'server=223.5.5.5@scut-lan'; echo 'server=119.29.29.29@scut-lan';;
+            wired) echo 'server=222.201.130.30@wan'; echo 'server=222.201.130.33@wan';;
+        esac
+    } > "$RUN/dns.conf.new"
+    dnsmasq --test --conf-file="$RUN/dns.conf.new" >/dev/null 2>&1 || return 1
+    if ! cmp -s "$RUN/dns.conf.new" "$RUN/dns.conf"; then
+        mv "$RUN/dns.conf.new" "$RUN/dns.conf"
+        /etc/init.d/scut-lan-dns restart || return 1
+    else
+        /etc/init.d/scut-lan-dns start || return 1
+    fi
+}
+apply() { routes "$1" && rules "$1" && dns "$1" && firewall "$1"; }
+switch() {
+    m=$1
+    if [ "$m" = tunnel ]; then
+        /etc/init.d/scut-lan-tunnel start || return 1
+        n=0
+        while [ ! -s "$RUN/tunnel.ready" ] && [ "$n" -lt 20 ]; do sleep 1; n=$((n+1)); done
+        [ -s "$RUN/tunnel.ready" ] || { echo '{"error":"隧道暂未连接，原模式已保留"}'; return 1; }
+    fi
+    old=$(mode)
+    guard || return 1
+    if apply "$m"; then
+        printf '%s\n' "$m" > "$CFG.new" && chmod 600 "$CFG.new" && mv "$CFG.new" "$CFG" || return 1
+        [ "$m" = tunnel ] || /etc/init.d/scut-lan-tunnel stop
+        # Close only mode-following LAN proxy connections; do not restart paths.
+        ubus call service signal '{"name":"scut-bond","instance":"proxy","signal":1}' >/dev/null 2>&1 || :
+        unguard
+        logger -t scut-lan "LAN mode=$m"
+        status
+    else
+        if apply "$old"; then unguard; fi
+        echo '{"error":"切换失败，已尝试恢复原模式"}'
+        return 1
+    fi
+}
+case "${1:-}" in
+    status) [ "$#" -eq 1 ] && status;;
+    set)
+        [ "$#" -eq 2 ] || exit 2
+        case "$2" in tunnel|multi|wired) ;; *) exit 2;; esac
+        lock || { echo '{"error":"正在切换，请稍后重试"}'; exit 1; }
+        switch "$2";;
+    refresh)
+        [ "$#" -eq 1 ] || exit 2
+        lock || exit 0
+        m=$(mode); case "$m" in tunnel|multi|wired) ;; *) exit 1;; esac
+        routes "$m" && rules "$m";;
+    restore)
+        [ "$#" -eq 1 ] || exit 2
+        lock || exit 0
+        m=$(mode); case "$m" in tunnel|multi|wired) ;; *) exit 1;; esac
+        [ "$m" != tunnel ] || /etc/init.d/scut-lan-tunnel start
+        guard && apply "$m" && unguard;;
+    *) exit 2;;
+esac

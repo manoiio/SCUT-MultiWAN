@@ -34,6 +34,19 @@ run_rc 1 "$BIN/dualwan-refresh" apply
 pass 'three-way installation error fails closed'
 reset; wired_fixture; run_rc 75 "$BIN/scut-wired-gate" prepare
 pass 'wired admission requires actual inherited global lock'
+reset; wired_fixture; run_rc 75 "$BIN/scut-wired-gate" release-window
+pass 'release discovery retry requires the inherited real Portal lock'
+reset; wired_fixture; TEST_CLOCK='00 05 55'; export TEST_CLOCK
+before="$(sha256sum "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget")"
+run_rc 76 gate release-window
+[ "$before" = "$(sha256sum "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget")" ] || fail 'release guard changed durable state'
+pass 'release retry stops before quiet boundary without consuming an attempt'
+reset; wired_fixture; TEST_CLOCK='00 05 50'; export TEST_CLOCK
+run_rc 0 gate release-window
+pass 'release retry is permitted with sufficient active time remaining'
+reset; wired_fixture; TEST_CLOCK='01 00 00'; TEST_DATE=2026-10-08; TEST_WEEKDAY=4; export TEST_CLOCK TEST_DATE TEST_WEEKDAY
+run_rc 76 gate release-window
+pass 'release retries cannot authenticate or release during working-night silence'
 reset; wired_fixture; TEST_CLOCK='00 24 59'; TEST_DATE=2026-10-06; TEST_WEEKDAY=2; export TEST_CLOCK TEST_DATE TEST_WEEKDAY
 run_rc 76 gate prepare
 read stamp count last block < "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"

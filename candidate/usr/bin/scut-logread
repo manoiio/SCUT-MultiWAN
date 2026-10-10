@@ -1,0 +1,3 @@
+#!/bin/sh
+# Preserve the native ubox backend for --raw and forensic ubus consumers.
+exec /usr/libexec/scut-logread-policy "$@"

@@ -43,6 +43,9 @@ type config struct {
 	MaxConnections    int               `json:"max_connections"`
 	Benchmark         bool              `json:"benchmark"`
 	BenchmarkBudget   int64             `json:"benchmark_budget"`
+	TunInterface      string            `json:"tun_interface"`
+	ReadyFile         string            `json:"ready_file"`
+	LANEgressModeFile string            `json:"lan_egress_mode_file"`
 }
 type request struct {
 	Token  string `json:"token"`
@@ -120,16 +123,51 @@ func readJSONLine(r *bufio.Reader, v any) error {
 func writeJSON(w io.Writer, v any) error { return json.NewEncoder(w).Encode(v) }
 func main() {
 	p := flag.String("config", "", "private JSON configuration path")
+	derive := flag.String("derive-packet-config", "", "derive a private server/client IP tunnel configuration")
+	lanClient := flag.Bool("derive-lan-client-config", false, "derive a private mode-following LAN proxy configuration")
 	flag.Parse()
 	c, e := loadConfig(*p)
 	if e != nil {
 		log.Fatal(e)
+	}
+	if *derive != "" {
+		c.LANEgressModeFile = ""
+		c.PreferredIPv4 = nil
+		c.Benchmark = false
+		c.TunInterface = "scut-lan"
+		switch *derive {
+		case "server":
+			c.Mode, c.Listen, c.CongestionControl = "packet-server", "0.0.0.0:57502", "bbr"
+		case "client":
+			c.Mode, c.Server = "packet-client", "58.252.223.164:57502"
+			c.ReadyFile = "/var/run/scut-lan/tunnel.ready"
+		default:
+			log.Fatal("derive role must be server or client")
+		}
+		if e := writeJSON(os.Stdout, c); e != nil {
+			log.Fatal(e)
+		}
+		return
+	}
+	if *lanClient {
+		if c.Mode != "client" {
+			log.Fatal("LAN derivation requires a client")
+		}
+		c.LANEgressModeFile = "/etc/scut-lan/mode"
+		if e := writeJSON(os.Stdout, c); e != nil {
+			log.Fatal(e)
+		}
+		return
 	}
 	benchmarkLeft.Store(c.BenchmarkBudget)
 	if c.Mode == "server" {
 		e = runServer(c)
 	} else if c.Mode == "client" {
 		e = runClient(c)
+	} else if c.Mode == "packet-server" {
+		e = runPacketServer(c)
+	} else if c.Mode == "packet-client" {
+		e = runPacketClient(c)
 	} else {
 		e = errors.New("invalid mode")
 	}
@@ -275,11 +313,14 @@ func orderPublicIPs(ips []net.IP, host string, preferences map[string]string) []
 }
 
 func dialPublicPreferred(ctx context.Context, target string, preferences map[string]string) (net.Conn, error) {
+	return dialPublicOptions(ctx, target, preferences, net.DefaultResolver, false)
+}
+func dialPublicOptions(ctx context.Context, target string, preferences map[string]string, resolver *net.Resolver, marked bool) (net.Conn, error) {
 	h, p, e := net.SplitHostPort(target)
 	if e != nil || h == "" || (p != "80" && p != "443") {
 		return nil, errors.New("only public web ports are permitted")
 	}
-	ips, e := net.DefaultResolver.LookupIP(ctx, "ip4", h)
+	ips, e := resolver.LookupIP(ctx, "ip4", h)
 	if e != nil {
 		return nil, e
 	}
@@ -295,6 +336,9 @@ func dialPublicPreferred(ctx context.Context, target string, preferences map[str
 	var last error
 	for _, ip := range ips {
 		d := net.Dialer{Timeout: 5 * time.Second}
+		if marked {
+			d.Control = lanSocketMark
+		}
 		v, e := d.DialContext(ctx, "tcp4", net.JoinHostPort(ip.String(), p))
 		if e == nil {
 			return v, nil
@@ -304,6 +348,12 @@ func dialPublicPreferred(ctx context.Context, target string, preferences map[str
 	return nil, last
 }
 func runClient(c config) error {
+	if c.LANEgressModeFile != "" {
+		if c.LANEgressModeFile != "/etc/scut-lan/mode" {
+			return errors.New("invalid LAN mode file")
+		}
+		watchProxySignals()
+	}
 	pem, e := os.ReadFile(c.CA)
 	if e != nil {
 		return e
@@ -327,6 +377,9 @@ func runClient(c config) error {
 		v, e := l.Accept()
 		if e != nil {
 			return e
+		}
+		if c.LANEgressModeFile != "" {
+			v = proxyConnections.track(v)
 		}
 		ip, _, _ := net.SplitHostPort(v.RemoteAddr().String())
 		if !allowed.Contains(net.ParseIP(ip)) {
@@ -356,7 +409,31 @@ func runClient(c config) error {
 		}()
 	}
 }
-func dialTunnel(c config, roots *x509.CertPool, target string) (*tls.Conn, error) {
+func dialTunnel(c config, roots *x509.CertPool, target string) (net.Conn, error) {
+	generation := proxyConnections.version()
+	mode := "tunnel"
+	if c.LANEgressModeFile != "" {
+		var err error
+		mode, err = readLANMode(c.LANEgressModeFile)
+		if err != nil {
+			return nil, err
+		}
+		if mode != "tunnel" {
+			resolver := net.DefaultResolver
+			if mode == "wired" {
+				resolver = &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+					return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, network, "127.0.0.1:1053")
+				}}
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			u, err := dialPublicOptions(ctx, target, nil, resolver, true)
+			if err != nil {
+				return nil, err
+			}
+			return trackModeConnection(c, mode, u, generation)
+		}
+	}
 	ip, e := readLocalAddress(c.LocalAddressFile)
 	if e != nil {
 		return nil, e
@@ -398,7 +475,7 @@ func dialTunnel(c config, roots *x509.CertPool, target string) (*tls.Conn, error
 	}
 	t.SetDeadline(time.Time{})
 	log.Print("authenticated MPTCP tunnel opened")
-	return t, nil
+	return trackModeConnection(c, mode, t, generation)
 }
 
 func readLocalAddress(path string) (net.IP, error) {

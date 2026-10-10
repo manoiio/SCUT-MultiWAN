@@ -54,6 +54,15 @@ pass 'failed scans back off, while forced morning checks bypass backoff'
 reset; run_rc 0 "$BIN/native-best" switch radio2
 ! grep -q 'ifdown wan2' "$TEST_ROOT/trace" || fail 'verified candidate DHCP torn down'
 pass 'promotion preserves the verified candidate DHCP lease'
+reset; TEST_CLEANUP_RC=1; export TEST_CLEANUP_RC
+run_rc 0 "$BIN/native-best" switch radio2
+pass 'cleanup command errors are accepted only after WAN down and association removal'
+reset; TEST_CLEANUP_STUCK=1; export TEST_CLEANUP_STUCK
+run_rc 1 "$BIN/native-best" switch radio2
+pass 'stuck old WAN or association cannot report a successful Native switch'
+reset; TEST_CLEANUP_UNKNOWN=1; export TEST_CLEANUP_UNKNOWN
+run_rc 1 "$BIN/native-best" switch radio2
+pass 'unknown teardown state cannot report a successful Native switch'
 reset
 run_rc 0 sh -c '. "$1"; mw_online phy0-sta0 6' sh "$COMMON"
 TEST_DNS_FAIL=1; export TEST_DNS_FAIL

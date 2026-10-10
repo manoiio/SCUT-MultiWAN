@@ -1,0 +1,28 @@
+Fri Oct  9 20:03:07 CST 2026
+{"links":[{"slot":"native","device":"phy0-sta0","radio":"radio0","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok","last_stage":"public-verify","last_rc":0},{"slot":"usb","device":"phy3-sta0","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok","last_stage":"public-verify","last_rc":0},{"slot":"wan","device":"wan","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"none","last_stage":"none","last_rc":0}],"morning":{"date":"2026-10-09","native":26660,"usb":25892,"wan":25559,"retry_active":false}}
+{"mode":"wired","ready":true,"persistent":true,"available_wans":3}
+default 
+	nexthop via 10.195.63.254 dev phy0-sta0 weight 1 
+	nexthop via 10.195.95.254 dev phy3-sta0 weight 1 
+	nexthop via 110.64.88.254 dev wan weight 1 
+10.195.48.0/20 dev phy0-sta0 scope link 
+10.195.80.0/20 dev phy3-sta0 scope link 
+110.64.88.0/24 dev wan scope link 
+716b6351ee41a9c8fa3fa4abaca17dfa9543c0e7250ee9ca4915fb9f50153868  /usr/lib/scut-multiwan/remote-release.sh
+17314a977c0e1ce8b62baad3d06851753acd5eae990381db28f4361331372657  /usr/bin/campus-portal-logout.impl
+e8c28ee0154176639ef168e8334160a6b6faffd83cf2e8f010ee2793e9fa870e  /usr/bin/campus-usb-logout.impl
+2026-10-09 20:01:24 origin=manual action=login
+native-select: Keep radio0: already best
+2026-10-09 20:01:47 action=login stage=public-verify rc=0
+2026-10-09 19:43:26 origin=manual action=login
+2026-10-09 19:43:36 action=login stage=public-verify rc=0
+/etc/config/network: OK
+/etc/config/wireless: OK
+/etc/config/firewall: OK
+/etc/config/dhcp: OK
+/etc/campus-portal.conf: OK
+/etc/scut-wired.conf: OK
+/etc/crontabs/root: OK
+Fri Oct  9 20:01:05 2026 user.notice campus-portal: native exact remote target release verified; peer remains online
+Fri Oct  9 20:01:05 2026 user.notice campus-portal: native remote-release stage=peer-public rc=0
+Fri Oct  9 20:01:47 2026 user.notice scut-lan-links: native origin=manual action=login stage=public-verify rc=0

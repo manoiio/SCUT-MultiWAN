@@ -1,0 +1,2 @@
+All ip/nft/ubus/services/dnsmasq calls are replaced by mocks; actual flock is retained. Suite generated in /private/tmp/scut-lan-tests-v2, remote /tmp/scut-lan-tests-v2. Never run this test entry directly without its isolated mocks.
+Reproducible builder: tests/build_lan_mode_tests.py; output /private/tmp/scut-lan-suite.tar. The final builder output was transferred to the router and rerun: all 8 cases passed, then real scut-lan-mode status remained wired/ready=true/persistent=true.

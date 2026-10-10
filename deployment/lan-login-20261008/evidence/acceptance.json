@@ -1,0 +1,45 @@
+{
+  "time": "2026-10-08T20:09:00+08:00",
+  "native": {
+    "operation": "one authorized login",
+    "selector": "native-best apply: both radio scan; keep radio2",
+    "public_https": true
+  },
+  "usb": {
+    "operation": "one authorized login",
+    "public_https": true
+  },
+  "wired": {
+    "existing_heartbeat_preserved": true,
+    "public_https": true
+  },
+  "multi": {
+    "healthy_paths": 3,
+    "weights": [
+      1,
+      1,
+      1
+    ],
+    "exit_ips": [
+      "110.64.88.149",
+      "221.4.34.108",
+      "221.4.34.127"
+    ]
+  },
+  "tunnel": {
+    "mptcp_subflows": 3,
+    "exit_ipv4": "58.252.223.164"
+  },
+  "final_mode": "wired",
+  "persistent": true,
+  "morning": {
+    "native": "07:17:29",
+    "usb": "07:10:23",
+    "wan": "07:23:14"
+  },
+  "guard_confirmed": true,
+  "cold_reboot_tested": false,
+  "next_morning_observed": false,
+  "browser_button_clicks_tested": false,
+  "wired_logout_live_tested": false
+}

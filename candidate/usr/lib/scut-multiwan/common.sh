@@ -1,5 +1,6 @@
 #!/bin/sh
 # Shared BusyBox ash helpers. Locks are stable files: never unlink them.
+. /usr/lib/scut-multiwan/wireless-control.sh || return 1
 
 # Read one local GMT+8 clock snapshot; an uninitialized/invalid clock fails closed.
 mw_clock() {
@@ -55,6 +56,10 @@ mw_day_allowed() {
 # Ordinary/work weekends: 00:06–07:00 quiet. Allowed dates: protect to 00:25.
 mw_quiet_now() {
     mw_clock || return 0
+    if [ "$MW_SECONDS" -ge 25200 ] && [ "$MW_SECONDS" -le 27600 ]; then
+        mw_morning_time || return 0
+        [ "$MW_SECONDS" -ge "$MW_MORNING" ] || return 0
+    fi
     [ "$MW_SECONDS" -ge 360 ] && [ "$MW_SECONDS" -lt 25200 ] || return 1
     mw_day_allowed || return 0
     [ "$MW_SECONDS" -lt 1500 ]
@@ -64,6 +69,11 @@ mw_quiet_now() {
 mw_require_active() {
     [ ! -e /tmp/scut-multiwan-deploying ] || return 75
     mw_quiet_now && return 76
+    if [ "${MW_MORNING_LOGIN:-0}" = 1 ]; then
+        [ "$MW_DATE" = "${MW_MORNING_DAY:-}" ] && [ "$MW_SECONDS" -ge 25200 ] &&
+            [ "$MW_SECONDS" -lt 32400 ] || return 76
+        [ $((32400-MW_SECONDS)) -gt "${1:-30}" ] || return 76
+    fi
     if [ "$MW_SECONDS" -lt 360 ] &&
        [ $((360 - MW_SECONDS)) -le "${1:-30}" ]; then return 76; fi
     return 0

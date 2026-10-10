@@ -1,0 +1,13 @@
+{
+  "luci-app-scut-lan": {
+    "description": "Switch only the three predefined LAN egress modes",
+    "read": {
+      "ubus": {"file": ["exec"]},
+      "file": {"/usr/libexec/scut-lan-status": ["exec"], "/usr/libexec/scut-lan-link-status": ["exec"]}
+    },
+    "write": {
+      "ubus": {"file": ["exec"]},
+      "file": {"/usr/libexec/scut-lan-set": ["exec"], "/usr/libexec/scut-lan-link-action": ["exec"]}
+    }
+  }
+}

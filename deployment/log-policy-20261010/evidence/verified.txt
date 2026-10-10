@@ -1,0 +1,29 @@
+usr/bin/native-best: OK
+usr/bin/scut-logread: OK
+usr/bin/scut-reboot-watch: OK
+etc/init.d/log: OK
+usr/libexec/scut-logread-policy: OK
+usr/libexec/syslog-wrapper: OK
+www/luci-static/resources/view/status/syslog.js: OK
+/etc/config/network: OK
+/etc/config/wireless: OK
+/etc/config/firewall: OK
+/etc/config/dhcp: OK
+/etc/config/system: OK
+/etc/campus-portal.conf: OK
+/etc/scut-wired.conf: OK
+/etc/crontabs/root: OK
+/etc/scut-multiwan/native.session: OK
+/etc/scut-multiwan/usb.session: OK
+/etc/scut-multiwan/wired.session: OK
+/etc/scut-multiwan/native.night-budget: OK
+/etc/scut-multiwan/usb.night-budget: OK
+/etc/scut-multiwan/wired.night-budget: OK
+{"mode":"wired","ready":true,"persistent":true,"available_wans":3}
+d1c57078-6dca-4b07-a9e0-b8b23b0c607e
+1622
+     6024 /etc/scut-logs/raw.log
+     6024 /etc/scut-logs/system.log
+    12048 total
+2026-10-10T14:11:01+08:00
+ALL 225 GROUPS PASSED

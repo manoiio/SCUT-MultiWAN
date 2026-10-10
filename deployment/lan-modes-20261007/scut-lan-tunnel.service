@@ -1,0 +1,26 @@
+[Unit]
+Description=SCUT authenticated LAN IP over TLS/MPTCP
+After=scut-lan-setup.service
+Requires=scut-lan-setup.service
+
+[Service]
+User=scutbond
+Group=scutbond
+ExecStart=/usr/local/bin/scut-lan-tunnel -config /etc/scut-lan/server.json
+Restart=on-failure
+RestartSec=3
+Environment=GOMEMLIMIT=48MiB
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=128
+MemoryMax=96M
+
+[Install]
+WantedBy=multi-user.target

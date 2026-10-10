@@ -1,0 +1,86 @@
+2026-10-10T00:22:13+08:00
+2026-10-10T00:17:44+08:00
+2026-10-10T00:19:42+08:00
+d1c57078-6dca-4b07-a9e0-b8b23b0c607e
+/etc/scut-logs/system.log
+2048
+128
+drwx------    2 root     root           304 Oct 10 00:17 /etc/scut-logs
+lrwxrwxrwx    1 root     root            27 Oct 10 00:17 /etc/rc.d/S11scut-reboot-watch -> ../init.d/scut-reboot-watch
+-rw-------    1 root     root            37 Oct 10 00:17 /etc/scut-logs/last.boot
+-rw-------    1 root     root         84783 Oct 10 00:21 /etc/scut-logs/system.log
+Sat Oct 10 00:19:49 2026 user.notice scut-reboot: phase=sample boot=d1c57078-6dca-4b07-a9e0-b8b23b0c607e uptime=1347 mem_available_kb=140060 load=0.05,0.37,0.26 temperature_mc=53000
+Sat Oct 10 00:20:49 2026 user.notice scut-reboot: phase=sample boot=d1c57078-6dca-4b07-a9e0-b8b23b0c607e uptime=1407 mem_available_kb=142040 load=0.02,0.30,0.24 temperature_mc=53000
+Sat Oct 10 00:21:49 2026 user.notice scut-reboot: phase=sample boot=d1c57078-6dca-4b07-a9e0-b8b23b0c607e uptime=1467 mem_available_kb=144240 load=0.00,0.24,0.22 temperature_mc=53000
+{
+	"log": {
+		"instances": {
+			"logd": {
+				"running": true,
+				"pid": 1622,
+				"command": [
+					"/sbin/logd",
+					"-S",
+					"128"
+				],
+				"term_timeout": 5,
+				"respawn": {
+					"threshold": 5,
+					"timeout": 1,
+					"retry": -1
+				}
+			},
+			"logfile": {
+				"running": true,
+				"pid": 2938,
+				"command": [
+					"/sbin/logread",
+					"-f",
+					"-F",
+					"/etc/scut-logs/system.log",
+					"-p",
+					"/var/run/logread.1.pid",
+					"-S",
+					"2048"
+				],
+				"term_timeout": 5
+			}
+		}
+	}
+}
+{
+	"scut-reboot-watch": {
+		"instances": {
+			"instance1": {
+				"running": true,
+				"pid": 3013,
+				"command": [
+					"/usr/bin/scut-reboot-watch",
+					"run"
+				],
+				"term_timeout": 3,
+				"respawn": {
+					"threshold": 3600,
+					"timeout": 5,
+					"retry": 5
+				}
+			}
+		}
+	}
+}
+usr/bin/scutclient-wired: OK
+usr/bin/scut-wired-gate: OK
+usr/bin/scut-wired-route-recover: OK
+usr/bin/scut-reboot-watch: OK
+etc/init.d/scut-reboot-watch: OK
+/etc/config/network: OK
+/etc/config/wireless: OK
+/etc/config/firewall: OK
+/etc/config/dhcp: OK
+/etc/campus-portal.conf: OK
+/etc/scut-wired.conf: OK
+/etc/crontabs/root: OK
+/etc/scut-multiwan/native.session: OK
+/etc/scut-multiwan/usb.session: OK
+/etc/scut-multiwan/wired.session: OK
+/etc/scut-multiwan/wired.night-budget: OK

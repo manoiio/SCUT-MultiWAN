@@ -4,6 +4,7 @@
 
 mw_require_active || exit $?
 mw_portal_lock 30 || exit $?
+mw_login_paused native || exit $?
 . /etc/campus-portal.conf
 
 DEV="$1"

@@ -1,0 +1,4 @@
+#!/bin/sh
+[ "$#" = 2 ] || exit 2
+case "$1:$2" in native:login|native:logout|usb:login|usb:logout|wan:login|wan:logout) ;; *) exit 2;; esac
+exec /usr/bin/scut-lan-links action "$1" "$2"

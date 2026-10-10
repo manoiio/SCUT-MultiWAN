@@ -41,6 +41,9 @@ if [ -z "$IP" ] && [ -z "$2" ]; then
     exit 1
 fi
 
+SOURCE_IP=$IP
+case "$DEV" in phy0-sta*|phy2-sta*) ;; *) SOURCE_IP=;; esac
+
 
 case "$DEV" in
     phy0-sta*|phy2-sta*) ;;
@@ -73,6 +76,14 @@ case "$USER" in
         ACCOUNT="${USER}@wifi"
         ;;
 esac
+
+# Type 1 is source-local. A missing/changed source cannot safely release an
+# older journal IP this way, even with wlan_user_ip set to that older IP.
+if [ "$SOURCE_IP" != "$IP" ]; then
+    . /usr/lib/scut-multiwan/remote-release.sh || exit 75
+    mw_remote_release_logged native "$IP" "$ACCOUNT"
+    exit $?
+fi
 
 log "$DEV: IP=$IP integer=$IP_INT"
 
@@ -118,6 +129,10 @@ if printf '%s\n' "$RESPONSE" |
 
 fi
 
+if mw_portal_empty "$RESPONSE"; then
+    mw_confirm_absent native "$DEV" "$IP" "$RESPONSE"
+    exit $?
+fi
 log "$DEV: Portal logout failed"
 
 exit 1

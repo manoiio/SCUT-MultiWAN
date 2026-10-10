@@ -1,0 +1,4 @@
+PASS 1: manual logout holds all three automatic authentication entry points
+PASS 2: confirmed explicit logout persists its hold and cannot be followed by watchdog login
+PASS 3: next-day morning attempts once and can resume a manually logged-out session
+ALL 3 GROUPS PASSED

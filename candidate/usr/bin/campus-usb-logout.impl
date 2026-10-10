@@ -35,6 +35,9 @@ IP="$(
 
 [ -n "$IP" ] || [ -n "$2" ] || exit 1
 
+SOURCE_IP=$IP
+case "$DEV" in phy3-sta*|mtusb*) ;; *) SOURCE_IP=;; esac
+
 
 case "$DEV" in
     phy3-sta*|mtusb*) ;;
@@ -64,6 +67,12 @@ case "$USER" in
     *@wifi) ACCOUNT="$USER";;
     *) ACCOUNT="${USER}@wifi";;
 esac
+
+if [ "$SOURCE_IP" != "$IP" ]; then
+    . /usr/lib/scut-multiwan/remote-release.sh || exit 75
+    mw_remote_release_logged usb "$IP" "$ACCOUNT"
+    exit $?
+fi
 
 RESP="$(
     curl -4 \
@@ -107,6 +116,10 @@ if printf '%s\n' "$RESP" |
 
 fi
 
+if mw_portal_empty "$RESP"; then
+    mw_confirm_absent usb "$DEV" "$IP" "$RESP"
+    exit $?
+fi
 logger -t campus-usb-portal \
     "$DEV Portal logout failed"
 

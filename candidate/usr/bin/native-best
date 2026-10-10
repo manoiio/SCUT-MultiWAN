@@ -20,6 +20,9 @@ cleanup() {
 log() {
     logger -t native-best "$*"
     echo "$*"
+    # Only our own bounded diagnostic events, never captured Portal responses.
+    case "${MW_LINK_DETAIL:-}" in /etc/scut-multiwan/native.last-detail)
+        printf 'native-select: %s\n' "$*" >> "$MW_LINK_DETAIL";; esac
 }
 
 radio_phy() {
@@ -359,6 +362,7 @@ enable_candidate() {
 
 #
 disable_radio() {
+    local dev status link attempt ifdown_rc wifi_rc
     mw_require_active 40 || return $?
     CHANGED=1
     RADIO="$1"
@@ -367,16 +371,39 @@ disable_radio() {
 
     log "Disabling $RADIO"
     
-    uci set wireless."$SEC".disabled='1'
-    uci set wireless."$RADIO".disabled='1'
+    uci set wireless."$SEC".disabled='1' || return 1
+    uci set wireless."$RADIO".disabled='1' || return 1
     
-    uci commit wireless
+    uci commit wireless || return 1
     
     ifdown "$WAN" >/dev/null 2>&1
+    ifdown_rc=$?
     wifi down "$RADIO" >/dev/null 2>&1
+    wifi_rc=$?
+    dev="$(radio_dev "$RADIO")"
+    attempt=0
+    while [ "$attempt" -lt 12 ]; do
+        mw_require_active 10 || return $?
+        status="$(ifstatus "$WAN" 2>/dev/null)"
+        # Unknown ubus/iw responses are not evidence of successful teardown.
+        if printf '%s\n' "$status" | grep -q '"up":[[:space:]]*false'; then
+            if [ ! -e "/sys/class/net/$dev" ]; then
+                break
+            fi
+            link="$(iw dev "$dev" link 2>/dev/null)"
+            if [ "$link" = 'Not connected.' ]; then break; fi
+        fi
+        attempt=$((attempt+1))
+        [ "$attempt" -ge 12 ] || sleep 1
+    done
+    if [ "$attempt" -ge 12 ]; then
+        logger -p user.err -t native-best "phase=radio-cleanup state=unconfirmed radio=$RADIO wan=$WAN ifdown_rc=$ifdown_rc wifi_rc=$wifi_rc"
+        return 1
+    fi
     
     uci -q delete network."$WAN".metric
-    uci commit network
+    uci commit network || return 1
+    log "phase=radio-cleanup state=verified radio=$RADIO wan=$WAN ifdown_rc=$ifdown_rc wifi_rc=$wifi_rc"
 
 }
 
@@ -673,9 +700,26 @@ apply_best() {
             if [ "$CURRENT" = "$BEST" ]; then
     
                 DEV="$(radio_dev "$CURRENT")"
+                if ! wan_up "$CURRENT"; then
+                    mw_require_scan 60 || return $?
+                    log "$CURRENT associated without DHCP; reacquiring lease with session journal preserved"
+                    CHANGED=1
+                    ifdown "$(radio_wan "$CURRENT")" >/dev/null 2>&1
+                    ifup "$(radio_wan "$CURRENT")" >/dev/null 2>&1
+                    local dhcp_round
+                    dhcp_round=0
+                    while ! wan_up "$CURRENT" && [ "$dhcp_round" -lt 15 ]; do
+                        mw_require_scan 5 || return $?
+                        dhcp_round=$((dhcp_round+1)); sleep 2
+                    done
+                    wan_up "$CURRENT" || { log "$CURRENT current DHCP recovery timed out"; return 1; }
+                    log "$CURRENT current DHCP recovered"
+                fi
     
-                /usr/bin/fix-qca-sta-rate "$DEV" \
-                    >/dev/null 2>&1 || return $?
+                /usr/bin/fix-qca-sta-rate "$DEV" >/dev/null 2>&1
+                local rate_rc
+                rate_rc=$?
+                [ "$rate_rc" = 0 ] || { log "$CURRENT current rate maintenance failed rc=$rate_rc"; return "$rate_rc"; }
     
                 log "Keep $CURRENT: already best"
     
@@ -917,6 +961,7 @@ case "$1" in
     *) echo "Usage: native-best status|survey|apply|auto|switch radio0|radio2"; exit 2;;
 esac
 mw_require_scan 300 || exit $?
+mw_login_paused native || exit $?
 mw_lock native-best 8 || exit $?
 trap cleanup EXIT
 trap 'exit 130' INT

@@ -1,0 +1,4 @@
+#!/bin/sh
+case "$ACTION" in ifup|ifupdate|ifdown)
+    [ ! -x /usr/bin/scut-lan-mode ] || /usr/bin/scut-lan-mode refresh >/dev/null 2>&1
+;; esac

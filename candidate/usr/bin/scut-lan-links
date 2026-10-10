@@ -1,0 +1,254 @@
+#!/bin/sh
+set -u
+umask 077
+. /usr/lib/scut-multiwan/common.sh || exit 1
+RUN=/var/run/scut-lan
+mkdir -p "$RUN"
+native_dev() {
+    local d found
+    found=
+    for d in phy0-sta0 phy2-sta0; do
+        iw dev "$d" link 2>/dev/null | grep -q '^Connected to ' || continue
+        [ -z "$found" ] || return 1
+        found=$d
+    done
+    [ -n "$found" ] && printf '%s\n' "$found"
+}
+device() { case "$1" in native) native_dev;; usb) echo phy3-sta0;; wan) echo wan;; esac; }
+wired_ready() {
+    local p start extra
+    read -r p start extra 2>/dev/null < /tmp/scut-wired-ready || return 1
+    case "$p:$start" in ''|*[!0-9:]*) return 1;; esac
+    [ -z "$extra" ] && [ -n "$p" ] && [ -n "$start" ] &&
+        [ "$(awk '{print $22}' "/proc/$p/stat" 2>/dev/null)" = "$start" ] &&
+        [ "$(readlink "/proc/$p/exe" 2>/dev/null)" = /usr/bin/scutclient-wired ]
+}
+running() {
+    local p start extra
+    read -r p start extra 2>/dev/null < "$RUN/$1.job.pid" || return 1
+    case "$p:$start" in ''|*[!0-9:]*) return 1;; esac
+    [ -n "$p" ] && [ -n "$start" ] && [ -z "$extra" ] &&
+        [ "$(awk '{print $22}' "/proc/$p/stat" 2>/dev/null)" = "$start" ] && kill -0 "$p" 2>/dev/null
+}
+probe() {
+    mw_lock lan-links-probe 7 || return $?
+    local slot d connected online before now health_rc
+    for slot in native usb wan; do
+        running "$slot" && continue
+        d=$(device "$slot") || d=
+        connected=false; online=false
+        if [ "$slot" = wan ]; then wired_ready && connected=true
+        elif [ -n "$d" ]; then iw dev "$d" link 2>/dev/null | grep -q '^Connected to ' && connected=true; fi
+        before=$(ip -4 -o addr show dev "$d" scope global 2>/dev/null)
+        if [ "$connected" = true ]; then
+            mw_online "$d" 4; health_rc=$?
+            case "$health_rc" in
+                0) [ "$(device "$slot")" = "$d" ] && [ "$(ip -4 -o addr show dev "$d" scope global 2>/dev/null)" = "$before" ] && online=true;;
+                75|76) online=null;;
+            esac
+        fi
+        now=$(mw_uptime)
+        running "$slot" && continue
+        printf '%s %s %s %s\n' "$now" "${d:-none}" "$connected" "$online" > "$RUN/$slot.health.new"
+        mv "$RUN/$slot.health.new" "$RUN/$slot.health"
+    done
+    mw_uptime > "$RUN/links-checked"
+}
+status() {
+    local now checked slot d stamp cached conn online paused reason active radio sep outcome origin action stage rc extra
+    now=$(mw_uptime); checked=0
+    read -r checked 2>/dev/null < "$RUN/links-checked" || checked=0
+    case "$checked" in ''|*[!0-9]*) checked=0;; esac
+    if [ $((now-checked)) -ge 30 ]; then setsid sh -c 'trap "" HUP; exec "$@"' sh "$0" probe >/dev/null 2>&1 </dev/null & fi
+    printf '{"links":['; sep=
+    for slot in native usb wan; do
+        d=$(device "$slot") || d=none
+        radio=none; case "$d" in phy0-sta0) radio=radio0;; phy2-sta0) radio=radio2;; esac
+        stamp=0; cached=none; conn=false; online=false
+        read -r stamp cached conn online 2>/dev/null < "$RUN/$slot.health" || :
+        case "$stamp" in ''|*[!0-9]*) stamp=0;; esac
+        [ "$cached" = "$d" ] && [ $((now-stamp)) -ge 0 ] && [ $((now-stamp)) -le 60 ] || { online=null; conn=false; }
+        case "$online" in true|false|null) ;; *) online=null;; esac
+        paused=false; reason=none
+        if [ -e "/etc/scut-multiwan/$slot.login-paused" ]; then
+            paused=true; read -r reason < "/etc/scut-multiwan/$slot.login-paused" || reason=unknown
+            case "$reason" in manual|vanished|logout|morning) ;; *) reason=unknown;; esac
+        fi
+        active=false; running "$slot" && active=true
+        outcome=none; read -r outcome 2>/dev/null < "$RUN/$slot.job.result" || outcome=none
+        case "$outcome" in login-ok|logout-ok|failed|running|deferred) ;; *) outcome=none;; esac
+        origin=none; action=none; stage=none; rc=0; extra=
+        read -r origin action stage rc extra 2>/dev/null < "$RUN/$slot.job.detail" || stage=none
+        case "$stage" in admission|wired-stop|wired-start|wired-public|watchdog-lock|native-select|native-lock|portal-lock|portal-logout|portal-login|public-verify|no-device|none) ;; *) stage=unknown;; esac
+        case "$rc" in ''|*[!0-9]*) rc=0;; esac
+        printf '%s{"slot":"%s","device":"%s","radio":"%s","online":%s,"paused":%s,"pause_reason":"%s","running":%s,"last_action":"%s","last_stage":"%s","last_rc":%s}' "$sep" "$slot" "$d" "$radio" "$online" "$paused" "$reason" "$active" "$outcome" "$stage" "$rc"
+        sep=,
+    done
+    if mw_clock && mw_morning_time; then
+        active=false; [ "$MW_SECONDS" -lt 32100 ] && [ "$MW_SECONDS" -ge 25200 ] && active=true
+        printf '],"morning":{"date":"%s","native":%s,"usb":%s,"wan":%s,"retry_active":%s}}\n' "$MW_DATE" "${MW_NATIVE_START:-25200}" "${MW_USB_START:-25200}" "${MW_WAN_START:-25200}" "$active"
+    else printf '],"morning":null}\n'; fi
+}
+worker() {
+    local slot action rc d ip n outcome online
+    slot=$1; action=$2; rc=1; outcome=failed
+    # Mark the explicit action before any mutation. Automatic callers cannot
+    # race a logout or a failed login and silently reauthenticate afterwards.
+    STAGE=admission
+    mw_require_active 300; rc=$?
+    [ "$rc" = 0 ] || { echo deferred > "$RUN/$slot.job.result"; return "$rc"; }
+    if [ "$action" = logout ]; then mw_pause_login "$slot" logout || return 1
+    elif [ "${MW_MORNING_LOGIN:-0}" = 1 ]; then mw_pause_login "$slot" morning || return 1
+    else mw_pause_login "$slot" manual || return 1; fi
+    export MW_MANUAL_LOGIN=1
+    if [ "$slot" = wan ]; then
+        if [ "$action" = logout ]; then
+            STAGE=wired-stop
+            /etc/init.d/scut-wired stop
+            n=0
+            while wired_ready && [ "$n" -lt 25 ]; do sleep 1; n=$((n+1)); done
+            if ! wired_ready && [ "$(awk 'NR==1{print $1}' /etc/scut-multiwan/wired.session)" = none ]; then rc=0; fi
+        else
+            STAGE=wired-start
+            # procd's child is independent, so remove only this manual hold.
+            rm -f /etc/scut-multiwan/wan.login-paused
+            /etc/init.d/scut-wired start
+            n=0
+            while ! wired_ready && [ "$n" -lt 30 ]; do sleep 1; n=$((n+1)); done
+            STAGE=wired-public
+            wired_ready && mw_online wan 6 && rc=0
+            [ "$rc" = 0 ] || mw_pause_login wan "${MW_PAUSE_REASON:-manual}"
+        fi
+    else
+        STAGE=watchdog-lock
+        mw_lock "$slot-watchdog" 8 || { echo deferred > "$RUN/$slot.job.result"; return 75; }
+        if [ "$slot" = native ] && [ "$action" = login ]; then
+            # Full two-radio selection uses the existing guarded transaction.
+            STAGE=native-select
+            /usr/bin/native-best apply >/dev/null 2>&1; rc=$?
+            [ "$rc" = 0 ] || { echo failed > "$RUN/$slot.job.result"; return "$rc"; }
+        fi
+        if [ "$slot" = native ]; then
+            STAGE=native-lock
+            exec 6>>/tmp/scut-multiwan-locks/native-best
+            flock -n 6 || { echo deferred > "$RUN/$slot.job.result"; return 75; }
+        fi
+        STAGE=portal-lock
+        mw_portal_lock 30 || { echo deferred > "$RUN/$slot.job.result"; return 75; }
+        d=$(device "$slot") || d=
+        if [ "$action" = logout ]; then
+            STAGE=portal-logout
+            mw_session_read "$slot" || return 75
+            ip=$MW_SESSION_IP
+            [ -n "$d" ] || d=$MW_SESSION_DEV
+            if [ "$ip" = none ]; then rc=0
+            elif [ "$slot" = native ]; then /usr/bin/campus-portal-logout "$d" "$ip" >/dev/null 2>&1; rc=$?
+            else /usr/bin/campus-usb-logout "$d" "$ip" >/dev/null 2>&1; rc=$?; fi
+        elif [ -n "$d" ]; then
+            STAGE=portal-login
+            if [ "$slot" = native ]; then /usr/bin/campus-portal-login "$d" >/dev/null 2>&1; rc=$?
+            else /usr/bin/campus-usb-login "$d" >/dev/null 2>&1; rc=$?; fi
+            if [ "$rc" = 0 ]; then STAGE=public-verify; mw_online "$d" 6; rc=$?; fi
+        else STAGE=no-device; rc=1
+        fi
+        exec 9>&-
+        exec 6>&-
+    fi
+    if [ "$rc" = 0 ]; then
+        outcome=$action-ok
+        [ "$action" != login ] || rm -f "/etc/scut-multiwan/$slot.login-paused"
+        d=$(device "$slot") || d=none
+        online=false; [ "$action" != login ] || online=true
+        printf '%s %s true %s\n' "$(mw_uptime)" "$d" "$online" > "$RUN/$slot.health.new"
+        mv "$RUN/$slot.health.new" "$RUN/$slot.health"
+    fi
+    printf '%s\n' "$outcome" > "$RUN/$slot.job.result"
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1 || :
+    probe >/dev/null 2>&1 || :
+    return "$rc"
+}
+run_worker() {
+    local rc origin stamp
+    origin=manual; MW_PAUSE_REASON=manual
+    if [ "${MW_MORNING_LOGIN:-0}" = 1 ]; then origin=morning; MW_PAUSE_REASON=morning; fi
+    export MW_PAUSE_REASON
+    MW_LINK_DETAIL="/etc/scut-multiwan/$1.last-detail"
+    export MW_LINK_DETAIL
+    mkdir -p /etc/scut-multiwan
+    stamp=$(date '+%Y-%m-%d %H:%M:%S')
+    printf '%s origin=%s action=%s\n' "$stamp" "$origin" "$2" > "$MW_LINK_DETAIL"
+    STAGE=admission
+    worker "$1" "$2"; rc=$?
+    printf '%s action=%s stage=%s rc=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$2" "$STAGE" "$rc" >> "$MW_LINK_DETAIL"
+    printf '%s %s %s %s\n' "$origin" "$2" "$STAGE" "$rc" > "$RUN/$1.job.detail.new"
+    mv "$RUN/$1.job.detail.new" "$RUN/$1.job.detail"
+    # Retain the original numeric code and stage even on an early return.
+    if [ "$rc" = 0 ]; then echo "$2-ok" > "$RUN/$1.job.result"
+    elif [ "$rc" = 75 ] || [ "$rc" = 76 ]; then echo deferred > "$RUN/$1.job.result"
+    else echo failed > "$RUN/$1.job.result"; fi
+    logger -t scut-lan-links "$1 origin=$origin action=$2 stage=$STAGE rc=$rc"
+    return "$rc"
+}
+check_link() {
+    local d
+    if [ "${MW_MORNING_LOGIN:-0}" = 1 ]; then
+        mw_require_active 10 || return $?
+        exec 5>>"/tmp/scut-multiwan-locks/link-action-$1"
+        flock -n 5 || return 75
+        [ "$(cat "/etc/scut-multiwan/$1.morning-cancelled" 2>/dev/null)" != "$MW_DATE" ] || return 75
+    fi
+    d=$(device "$1") || return 1
+    [ "$1" != wan ] || wired_ready || return 1
+    mw_online "$d" 4 || return $?
+    # Only the authorized morning window may resume a verified healthy hold.
+    if [ "${MW_MORNING_LOGIN:-0}" = 1 ]; then
+        rm -f "/etc/scut-multiwan/$1.login-paused"
+        echo login-ok > "$RUN/$1.job.result"
+        /usr/bin/dualwan-refresh force >/dev/null 2>&1 || :
+    fi
+    return 0
+}
+morning() {
+    mw_clock || return 76
+    MW_MORNING_LOGIN=1; MW_MORNING_DAY=$MW_DATE
+    export MW_MORNING_LOGIN MW_MORNING_DAY
+    mw_require_active 300 || return $?
+    exec 4>>"/tmp/scut-multiwan-locks/link-action-$1"
+    flock -n 4 || return 75
+    [ "$(cat "/etc/scut-multiwan/$1.morning-cancelled" 2>/dev/null)" != "$MW_DATE" ] || return 75
+    echo running > "$RUN/$1.job.result"
+    printf '%s %s\n' "$$" "$(awk '{print $22}' /proc/$$/stat)" > "$RUN/$1.job.pid"
+    run_worker "$1" login
+}
+launch() {
+    local slot action pid start
+    slot=$1; action=$2
+    mw_require_active 300 || { echo '{"error":"当前处于静默或部署保护，未执行"}'; return 76; }
+    mkdir -p /tmp/scut-multiwan-locks
+    exec 4>>"/tmp/scut-multiwan-locks/link-action-$slot"
+    flock -n 4 || { echo '{"error":"该链路正在执行操作"}'; return 75; }
+    echo running > "$RUN/$slot.job.result"
+    setsid sh -c 'trap "" HUP; exec "$@"' sh "$0" worker "$slot" "$action" >/dev/null 2>&1 </dev/null & pid=$!
+    start=$(awk '{print $22}' "/proc/$pid/stat" 2>/dev/null)
+    if [ -z "$start" ] || ! kill -0 "$pid" 2>/dev/null; then
+        echo failed > "$RUN/$slot.job.result"
+        echo '{"error":"后台任务未能启动"}'
+        return 1
+    fi
+    printf '%s %s\n' "$pid" "$start" > "$RUN/$slot.job.pid.new"
+    mv "$RUN/$slot.job.pid.new" "$RUN/$slot.job.pid"
+    printf '{"accepted":true,"slot":"%s","action":"%s"}\n' "$slot" "$action"
+}
+case "${1:-}" in
+    status) [ "$#" = 1 ] || exit 2; status;;
+    probe) [ "$#" = 1 ] || exit 2; probe;;
+    check|morning)
+        [ "$#" = 2 ] || exit 2
+        case "$2" in native|usb|wan) ;; *) exit 2;; esac
+        if [ "$1" = check ]; then check_link "$2"; else morning "$2"; fi;;
+    action|worker)
+        [ "$#" = 3 ] || exit 2
+        case "$2:$3" in native:login|native:logout|usb:login|usb:logout|wan:login|wan:logout) ;; *) exit 2;; esac
+        if [ "$1" = action ]; then launch "$2" "$3"; else run_worker "$2" "$3"; fi;;
+    *) exit 2;;
+esac

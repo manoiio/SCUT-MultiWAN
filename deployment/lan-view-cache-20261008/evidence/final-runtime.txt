@@ -1,0 +1,8 @@
+Thu Oct  8 21:01:27 CST 2026
+{"mode":"wired","ready":true,"persistent":true,"available_wans":3}
+{"links":[{"slot":"native","device":"phy2-sta0","radio":"radio2","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok"},{"slot":"usb","device":"phy3-sta0","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"login-ok"},{"slot":"wan","device":"wan","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"none"}],"morning":{"date":"2026-10-08","native":26249,"usb":25823,"wan":26594}}
+9153485164696385a47d547d8fea3a4b16558c8219c4f56b106868eb3b63d4e3  /usr/lib/scut-multiwan/wireless-control.sh
+0a66d3fa2f330fa3aa2feb9a1399fa29616876d9d55453a33205d360bbf20733  /usr/bin/scut-lan-links
+2aef8507a4d01857d898115e330f688a74d91b968da5e1222246d8e30d579275  /usr/bin/scut-morning-start
+e9b1431aabfb7404042bfc2ee240f854e9ba53722745694d47d4f882241af1d9  /www/luci-static/resources/view/network/scut_lan.js
+morning-boundary-deployment-confirmed

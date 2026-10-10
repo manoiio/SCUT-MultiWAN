@@ -1,0 +1,12 @@
+{
+  "as_of": "2026-10-08T20:10:26+08:00",
+  "cap_bytes": 62000000000,
+  "vps_rx_bytes": 24250674380,
+  "vps_tx_bytes": 32898723981,
+  "prior_bytes": 16023928689,
+  "baseline_nic_bytes": 12099629359,
+  "extra_reserve_bytes": 100000000,
+  "conservative_used_bytes": 61723697691,
+  "remaining_bytes": 276302309,
+  "wireless_build_reserve_bytes": 550000000
+}

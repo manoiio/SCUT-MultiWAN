@@ -81,6 +81,7 @@ case "$1" in
         mv /tmp/scut-wired-ready.$$ /tmp/scut-wired-ready
         ;;
     cleanup) mw_require_active 12 || exit $?;;
+    release-window) mw_require_active 6 || exit $?;;
     released) write_state none || exit 75; rm -f /tmp/scut-wired-ready;;
     uncertain)
         rm -f /tmp/scut-wired-ready

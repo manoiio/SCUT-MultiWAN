@@ -1,0 +1,10 @@
+2026-10-09: school public https://s.scut.edu.cn/a43.js?v=_1767589671857
+unbind_type: type // 1 local terminal, 2 other terminal
+School online_list read-only A/B: native own -> Native; USB own -> USB;
+USB requesting Native IP or old Native IP -> still USB source record.
+School mac/find with same account and find_mac=0: Native and USB own rows
+found once each, old Native IP absent. No raw provider response retained.
+New helper read-only target snapshots: both rc=0, exact IP/hardware MAC=yes.
+20:00:56 controlled Native release through USB: remote_release_rc=0;
+usb_public_rc=0; native_public_rc=1; Native journal confirmed released.
+No repeated mutation request was sent; Native manual recovery submitted next.

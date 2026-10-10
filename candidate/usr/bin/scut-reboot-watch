@@ -1,0 +1,53 @@
+#!/bin/sh
+# Root-only, bounded local diagnostics. Never read credentials or Portal bodies.
+umask 077
+store=/etc/scut-logs
+mkdir -p "$store" /tmp/scut-multiwan-locks || exit 1
+chmod 700 "$store" || exit 1
+boot="$(cat /proc/sys/kernel/random/boot_id)"
+case "$boot" in ''|*[!a-f0-9-]*) exit 1;; esac
+archive() {
+    exec 6>>/tmp/scut-multiwan-locks/reboot-archive || return 1
+    flock -n 6 || return 75
+    previous="$(cat "$store/last.boot" 2>/dev/null)"
+    if [ "$previous" != "$boot" ]; then
+        if [ -n "$previous" ]; then
+            source=system.log
+            # Keep original priorities and bodies for reboot investigations.
+            [ ! -f "$store/raw.log" ] || source=raw.log
+            for slot in 4 3 2; do
+                prior=$((slot-1))
+                [ ! -f "$store/previous-$prior.log" ] ||
+                    mv "$store/previous-$prior.log" "$store/previous-$slot.log" || return 1
+            done
+            {
+                printf 'previous_boot=%s next_boot=%s archive_wall=%s\n' "$previous" "$boot" "$(date -Iseconds)"
+                [ ! -f "$store/$source.old" ] || tail -c 524288 "$store/$source.old"
+                [ ! -f "$store/$source" ] || tail -c 524288 "$store/$source"
+            } > "$store/previous-1.log.tmp" || return 1
+            mv "$store/previous-1.log.tmp" "$store/previous-1.log" || return 1
+        fi
+        printf '%s\n' "$boot" > "$store/last.boot.tmp" &&
+            mv "$store/last.boot.tmp" "$store/last.boot" || return 1
+        sync
+    fi
+    flock -u 6; exec 6>&-
+}
+sample() {
+    uptime="$(awk '{print int($1)}' /proc/uptime)"
+    memory="$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)"
+    load="$(awk '{print $1 "," $2 "," $3}' /proc/loadavg)"
+    temperature="$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null)"
+    logger -t scut-reboot "phase=sample boot=$boot uptime=$uptime mem_available_kb=$memory load=$load temperature_mc=${temperature:-unknown}"
+}
+case "$1" in
+    archive) archive;;
+    once) sample;;
+    run)
+        sleep 5
+        logger -t scut-reboot "phase=started boot=$boot watchdog_bootstatus=$(cat /sys/class/watchdog/watchdog0/bootstatus 2>/dev/null)"
+        trap 'logger -t scut-reboot "phase=stopped boot=$boot"; exit 0' TERM INT
+        while :; do sample; sleep 60 & wait "$!"; done
+        ;;
+    *) echo 'usage: scut-reboot-watch archive|once|run' >&2; exit 2;;
+esac

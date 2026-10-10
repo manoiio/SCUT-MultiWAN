@@ -1,0 +1,15 @@
+{
+  "admin/network/scut_lan": {
+    "title": "LAN 出口切换",
+    "order": 5,
+    "action": {
+      "type": "view",
+      "path": "network/scut_lan_91a690ca5f3b"
+    },
+    "depends": {
+      "acl": [
+        "luci-app-scut-lan"
+      ]
+    }
+  }
+}

@@ -21,7 +21,7 @@ for src in (root/'candidate').rglob('*'):
     dst.parent.mkdir(parents=True,exist_ok=True)
     text = src.read_text()
     # Rewrite absolute paths once, so every write and command stays in isolation.
-    prefixes = ['/usr/lib/scut-multiwan','/usr/bin','/etc','/tmp','/sys/class/net']
+    prefixes = ['/usr/lib/scut-multiwan','/usr/libexec','/usr/bin','/etc','/tmp','/var/run','/sys/class/net']
     mapping = {}
     for index, prefix in enumerate(prefixes):
         key = '__SCUT_PATH_' + str(index) + '__'
@@ -48,6 +48,12 @@ calendar = subprocess.check_output(['awk', '-v', 'year=2026', '-v',
 wd=(out/'usr/bin/native-watchdog').read_text().replace(remote+'/usr/bin/native-best apply', remote+'/bin/native-best-fixture apply')
 (out/'usr/bin/native-watchdog-fixture').write_text(wd)
 (out/'usr/bin/native-watchdog-fixture').chmod(0o755)
+morning = (out/'usr/bin/scut-morning-start').read_text().replace(remote+'/usr/bin/scut-lan-links', remote+'/bin/morning-links-fixture')
+(out/'usr/bin/scut-morning-start-fixture').write_text(morning)
+(out/'usr/bin/scut-morning-start-fixture').chmod(0o755)
+selection = (out/'usr/bin/scut-lan-links').read_text().replace(remote+'/usr/bin/native-best apply', remote+'/bin/native-best-fixture apply')
+(out/'usr/bin/scut-lan-links-select-fixture').write_text(selection)
+(out/'usr/bin/scut-lan-links-select-fixture').chmod(0o755)
 mock = r'''#!/bin/sh
 name="${0##*/}"
 case "$name" in
@@ -73,10 +79,23 @@ case "$name" in
    case "$1" in /proc/999999/exe) echo "$TEST_ROOT/usr/bin/scutclient-wired";; *) busybox readlink "$@";; esac; exit $?;;
  timeout) shift; exec "$@";;
  native-best-fixture) echo "native-best-fixture" >> "$TEST_ROOT/trace"; exit "${TEST_BEST_RC:-0}";;
+ morning-links-fixture)
+   slot=$2
+   if [ "$1" = check ]; then [ "${TEST_MORNING_ONLINE:-none}" = "$slot" ]; exit $?; fi
+   echo "MORNING $slot" >> "$TEST_ROOT/trace"
+   exit "${TEST_MORNING_RC:-23}";;
  uci) echo "uci $*" >> "$TEST_ROOT/trace"; exit 0;;
- wifi) echo "wifi $*" >> "$TEST_ROOT/trace"; [ "$1" = up ] && touch "$TEST_ROOT/$2-enabled"; [ "$1" = down ] && rm -f "$TEST_ROOT/$2-enabled"; exit 0;;
- ifup) [ "${TEST_DHCP_RECOVERY:-0}" != 1 ] || touch "$TEST_ROOT/dhcp-restored"; echo "ifup $*" >> "$TEST_ROOT/trace"; exit 0;;
- ifdown|sysctl) echo "$name $*" >> "$TEST_ROOT/trace"; exit 0;;
+ wifi)
+   echo "wifi $*" >> "$TEST_ROOT/trace"
+   if [ "$1" = up ]; then touch "$TEST_ROOT/$2-enabled"; rm -f "$TEST_ROOT/$2-disabled"; fi
+   if [ "$1" = down ]; then
+     [ "${TEST_CLEANUP_STUCK:-0}" = 1 ] || { rm -f "$TEST_ROOT/$2-enabled"; touch "$TEST_ROOT/$2-disabled"; }
+     exit "${TEST_CLEANUP_RC:-0}"
+   fi
+   exit 0;;
+ ifup) rm -f "$TEST_ROOT/$1-down"; [ "${TEST_DHCP_RECOVERY:-0}" != 1 ] || touch "$TEST_ROOT/dhcp-restored"; echo "ifup $*" >> "$TEST_ROOT/trace"; exit 0;;
+ ifdown) echo "$name $*" >> "$TEST_ROOT/trace"; [ "${TEST_CLEANUP_STUCK:-0}" = 1 ] || touch "$TEST_ROOT/$1-down"; exit "${TEST_CLEANUP_RC:-0}";;
+ sysctl) echo "$name $*" >> "$TEST_ROOT/trace"; exit 0;;
  ping)
    echo "ping" >> "$TEST_ROOT/trace"
    count="$(cat "$TEST_ROOT/ping-count" 2>/dev/null)"; count="${count:-0}"; count=$((count+1)); echo "$count" > "$TEST_ROOT/ping-count"
@@ -93,6 +112,9 @@ case "$name" in
    fi
    [ "$name" = ubus ] && iface="${2##*.}" || iface="$1"
    case "$iface" in wan1) dev=phy0-sta0; up=true;; wan2) dev=phy2-sta0; up=false; [ -f "$TEST_ROOT/radio2-enabled" ] && up=true;; usbwan) dev=phy3-sta0; up=true;; wan) dev=wan; up=true;; esac
+   [ ! -f "$TEST_ROOT/$iface-down" ] || up=false
+   if [ "${TEST_CLEANUP_UNKNOWN:-0}" = 1 ] && [ -f "$TEST_ROOT/$iface-down" ]; then echo '{}'; exit 1; fi
+   if [ "${TEST_NO_DHCP:-0}" = 1 ] && [ "$iface" = wan1 ] && [ ! -f "$TEST_ROOT/dhcp-restored" ]; then up=false; fi
    printf '{\n"up": %s,\n"l3_device": "%s"\n}\n' "$up" "$dev"; exit 0;;
  iw)
    [ "$1" = phy ] && { echo "iw-create $*" >> "$TEST_ROOT/trace"; exit 0; }
@@ -100,6 +122,8 @@ case "$name" in
    dev="$2"; action="$3"
    case "$action" in
     link)
+      case "$dev" in phy0-sta0) radio=radio0;; phy2-sta0) radio=radio2;; *) radio=radio3;; esac
+      if [ -f "$TEST_ROOT/$radio-disabled" ]; then echo 'Not connected.'; exit 0; fi
       case "$dev" in phy0-sta0) [ "${TEST_ACTIVE:-radio0}" = radio0 ] || exit 1;; phy2-sta0) [ "${TEST_ACTIVE:-radio0}" = both ] || [ -f "$TEST_ROOT/radio2-enabled" ] || exit 1;; esac
       printf 'Connected to 00:11:22:33:44:55 (on %s)\n freq: 5180\n' "$dev";;
     info)
@@ -135,7 +159,7 @@ case "$name" in
    [ ! -f "$TEST_ROOT/changed-ip-$dev" ] || ip=10.1.1.99
    case "$*" in
     '-4 -o addr show dev wan') echo "4: wan inet ${TEST_WIRED_IP:-10.4.4.40}/24 scope global";;
-    *'addr show'*) echo "1: $dev inet $ip/24 scope global";;
+    *'addr show'*) [ "${TEST_NO_ADDRESS:-}" != "$dev" ] || exit 0; echo "1: $dev inet $ip/24 scope global";;
     *'route show dev '*'scope link'*) echo "$net dev $dev scope link";;
     *'route show dev '*) echo "default via $gw dev $dev";;
     'rule show') [ -f "$TEST_ROOT/rule-removed" ] || printf '103:\tfrom all iif br-lan lookup 103\n';;
@@ -147,7 +171,7 @@ case "$name" in
     *) echo "ip $*" >> "$TEST_ROOT/trace";;
    esac; exit 0;;
  curl)
-   dev=; target=; prev=; url=; pwarg=0; output=; resolved=0; cap=
+   dev=; target=; prev=; url=; pwarg=0; output=; resolved=0; cap=; unbind=; mac=
    for arg in "$@"; do
      [ "$prev" = --interface ] && dev="$arg"
      [ "$prev" = --output ] && output="$arg"
@@ -156,12 +180,34 @@ case "$name" in
      case "$arg" in
       http*://*) url="$arg";;
       wlan_user_ip=*) target="${arg#*=}";;
+      wlan_user_mac=*) mac="${arg#*=}";;
+      unbind_type=*) unbind="${arg#*=}";;
       user_password@/proc/self/fd/0) pwarg=1;;
+      user_password=) :;;
       user_password=*) exit 98;;
      esac
      prev="$arg"
    done
    case "$url" in
+    *'/portal/mac/find')
+      [ "$(cat)" = test-user@wifi ] || exit 98
+      echo "REMOTE_FIND $dev" >> "$TEST_ROOT/trace"
+      [ "${TEST_REMOTE_FIND_FAIL:-0}" = 0 ] || exit 28
+      [ -z "${TEST_REMOTE_FIND_BODY:-}" ] || { cat "$TEST_REMOTE_FIND_BODY"; exit 0; }
+      printf '{"result":1,"list":['; sep=
+      for slot in native usb; do
+        read -r entry owner < "$TEST_ROOT/etc/scut-multiwan/$slot.session"
+        [ "$entry" != none ] && [ ! -f "$TEST_ROOT/remote-released-$entry" ] || continue
+        entrymac=$(tr -d ':' < "$TEST_ROOT/sys/$owner/address")
+        [ "${TEST_REMOTE_BAD_MAC:-0}" = 0 ] || entrymac=000000000000
+        printf '%s{"online_ip":"%s","online_mac":"%s"}' "$sep" "$entry" "$entrymac"; sep=,
+      done
+      printf ']}';;
+    *'/portal/online_list')
+      echo "READ_ONLY_ONLINE $dev" >> "$TEST_ROOT/trace"
+      [ "${TEST_ABSENT_QUERY_FAIL:-0}" = 0 ] || exit 28
+      [ "${TEST_ABSENT_QUERY_ONLINE:-0}" = 0 ] || { echo '{"result":1}'; exit 0; }
+      echo 'dr1002({"result":0,"msg":"获取用户在线信息数据为空！"});';;
     *'sousuo.www.gov.cn/search-gov/data')
       echo 'CAL_SEARCH' >> "$TEST_ROOT/trace"
       [ "${TEST_CAL_FETCH_FAIL:-0}" = 0 ] || exit 28
@@ -177,6 +223,19 @@ case "$name" in
       [ "${TEST_LOGOUT_DEVICE_FAIL:-}" != "$dev" ] || exit 7
       [ "$cap" = 1048576 ] || exit 98
       echo "LOGOUT $dev $target" >> "$TEST_ROOT/trace"
+      if [ "$unbind" = 2 ]; then
+        [ "$(cat)" = test-user@wifi ] || exit 98
+        [ "$mac" != 000000000000 ] && [ "${#mac}" = 12 ] || exit 98
+        echo "REMOTE_UNBIND $dev $target type=$unbind mac=$mac" >> "$TEST_ROOT/trace"
+        if [ "${TEST_REMOTE_UNBIND_TIMEOUT:-0}" = 1 ]; then exit 28; fi
+        [ "${TEST_REMOTE_KEEP_TARGET:-0}" = 1 ] || {
+          for slot in native usb; do
+            read -r entry owner < "$TEST_ROOT/etc/scut-multiwan/$slot.session"
+            num=$(printf '%s' "$entry" | awk -F. '{printf "%.0f",$1*16777216+$2*65536+$3*256+$4}')
+            [ "$num" != "$target" ] || touch "$TEST_ROOT/remote-released-$entry"
+          done
+        }
+      fi
       if [ -n "${TEST_PORTAL_LOGOUT_BODY:-}" ]; then
         head -c "$cap" "$TEST_PORTAL_LOGOUT_BODY"
         [ "$(wc -c < "$TEST_PORTAL_LOGOUT_BODY")" -le "$cap" ] || exit 63
@@ -225,7 +284,7 @@ exit 1
 '''
 (out/'bin/mock').write_text(mock)
 (out/'bin/mock').chmod(0o755)
-for name in ['awk','date','sleep','logger','readlink','scutclient-wired','timeout','native-best-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
+for name in ['awk','date','sleep','logger','readlink','scutclient-wired','timeout','native-best-fixture','morning-links-fixture','uci','wifi','ifup','ifdown','sysctl','ping','ubus','ifstatus','iw','ip','curl']:
     (out/'bin'/name).symlink_to('mock')
 (out/'usr/bin/scutclient-wired').symlink_to('../../bin/mock')
 runner=r'''#!/bin/sh
@@ -238,12 +297,19 @@ BIN="$TEST_ROOT/usr/bin"
 COMMON="$TEST_ROOT/usr/lib/scut-multiwan/common.sh"
 N=0
 reset() {
+ unset TEST_CLEANUP_RC TEST_CLEANUP_STUCK TEST_CLEANUP_UNKNOWN
+ rm -f "$TEST_ROOT"/*-disabled "$TEST_ROOT"/wan1-down "$TEST_ROOT"/wan2-down
+ unset TEST_NO_DHCP TEST_MORNING_ONLINE TEST_MORNING_RC
+ rm -f "$TEST_ROOT/etc/scut-multiwan/"*.morning-state "$TEST_ROOT/etc/scut-multiwan/"*.morning-cancelled
  unset TEST_RATE_DEFER_ONCE TEST_LOGOUT_DEVICE_FAIL TEST_DHCP_RECOVERY
  rm -f "$TEST_ROOT/rate-deferred" "$TEST_ROOT/dhcp-restored" "$TEST_ROOT/tmp/native-watchdog"/dhcp.*
  unset TEST_LEGACY TEST_REASSOC_FAIL TEST_REASSOC_STUCK TEST_REASSOC_IP_CHANGE TEST_CACHE_AGE TEST_CACHE_HT TEST_CACHE_BSSID
  rm -rf "$TEST_ROOT/tmp/scut-link-recover"
  rm -f "$TEST_ROOT"/reassociated-* "$TEST_ROOT"/changed-ip-* "$TEST_ROOT/tmp/qca-fixed-rate"/*.legacy
  unset TEST_PORTAL_LOGIN_BODY TEST_PORTAL_LOGOUT_BODY TEST_PORTAL_LOGIN_RC TEST_PORTAL_LOGOUT_RC TEST_PORTAL_LOG_CAPTURE
+ unset TEST_REMOTE_FIND_FAIL TEST_REMOTE_FIND_BODY TEST_REMOTE_BAD_MAC TEST_REMOTE_UNBIND_TIMEOUT TEST_REMOTE_KEEP_TARGET
+ unset TEST_NO_ADDRESS
+ rm -f "$TEST_ROOT"/remote-released-*
  rm -f "$TEST_ROOT/portal-log"
  unset TEST_WIRED_ONLINE TEST_WIRED_IP TEST_RX_VALID_LIMIT TEST_ASSOC_CHANGE TEST_DNS_FAIL
  rm -f "$TEST_ROOT/etc/scut-wired.conf" "$TEST_ROOT/etc/scut-multiwan/wired.session" "$TEST_ROOT/etc/scut-multiwan/wired.night-budget"
@@ -256,6 +322,9 @@ reset() {
  rm -f "$TEST_ROOT/phy0-sta0-offline" "$TEST_ROOT/phy2-sta0-offline" "$TEST_ROOT/phy3-sta0-offline"
  rm -f "$TEST_ROOT/radio2-enabled" "$TEST_ROOT/radio0-enabled" "$TEST_ROOT/rule-removed" "$TEST_ROOT/phy0-sta0-login" "$TEST_ROOT/phy2-sta0-login" "$TEST_ROOT/phy3-sta0-login"
  mkdir -p "$TEST_ROOT/etc/scut-multiwan" "$TEST_ROOT/tmp/native-watchdog" "$TEST_ROOT/sys/phy0-sta0" "$TEST_ROOT/sys/phy2-sta0" "$TEST_ROOT/sys/phy3-sta0"
+ printf '00:11:22:33:44:10\n' > "$TEST_ROOT/sys/phy0-sta0/address"
+ printf '00:11:22:33:44:30\n' > "$TEST_ROOT/sys/phy2-sta0/address"
+ printf '00:11:22:33:44:20\n' > "$TEST_ROOT/sys/phy3-sta0/address"
  cp "$TEST_ROOT/fixtures/calendar-2026.txt" "$TEST_ROOT/etc/scut-multiwan/calendar-2026.txt"
  rm -f "$TEST_ROOT/etc/scut-multiwan/overnight.override" "$TEST_ROOT/etc/scut-multiwan/calendar-2027.txt"
  printf 'none 0 0 0\n' > "$TEST_ROOT/etc/scut-multiwan/native.night-budget"
@@ -320,7 +389,7 @@ pass 'ambiguous login retains journal and is released before retry'
 reset; TEST_NATIVE_ONLINE=0; export TEST_NATIVE_ONLINE; rm "$TEST_ROOT/etc/scut-multiwan/native.session"
 run_rc 75 "$BIN/campus-portal-login" phy0-sta0; ! grep -q '^LOGIN' "$TEST_ROOT/trace" || fail 'missing journal'; pass 'missing journal fails closed'
 reset; printf '10.9.9.9 phy2-sta0\n' > "$TEST_ROOT/etc/scut-multiwan/native.session"; TEST_NATIVE_ONLINE=0; export TEST_NATIVE_ONLINE
-run_rc 0 "$BIN/campus-portal-login" phy0-sta0; grep -q 'LOGOUT phy0-sta0 168364297' "$TEST_ROOT/trace" || fail 'stale DHCP target'; pass 'surviving interface releases recorded old DHCP address'
+run_rc 0 "$BIN/campus-portal-login" phy0-sta0; grep -q 'REMOTE_UNBIND phy3-sta0 168364297 type=2' "$TEST_ROOT/trace" || fail 'stale DHCP target'; pass 'a changed lease releases the old journal IP/MAC via a verified peer'
 reset; run_rc 0 "$BIN/native-best" switch radio2
 order="$(grep -E 'LOGIN|LOGOUT' "$TEST_ROOT/trace")"
 [ "$(printf '%s\n' "$order" | head -1)" = 'LOGOUT phy0-sta0 167837962' ] || fail 'switch order'
@@ -331,7 +400,7 @@ run_rc 1 "$BIN/native-best" switch radio2; ! grep -q '^LOGIN' "$TEST_ROOT/trace"
 reset; TEST_AFTER_LOGIN_ONLINE=0; export TEST_AFTER_LOGIN_ONLINE
 run_rc 1 "$BIN/native-best" switch radio2
 order="$(grep -E 'LOGIN|LOGOUT' "$TEST_ROOT/trace" | tr '\n' '|')"
-case "$order" in *'LOGIN phy2-sta0 10.3.3.30|LOGOUT phy0-sta0 167969566|LOGIN phy0-sta0 10.1.1.10|'*) ;; *) fail "rollback order $order";; esac
+case "$order" in *'LOGIN phy2-sta0 10.3.3.30|LOGOUT phy3-sta0 167969566|LOGIN phy0-sta0 10.1.1.10|'*) ;; *) fail "rollback order $order";; esac
 pass 'failed candidate Internet verification releases candidate before old login'
 reset; TEST_AFTER_LOGIN_ONLINE=0; TEST_FAIL_LOGOUT_IP=167969566; export TEST_AFTER_LOGIN_ONLINE TEST_FAIL_LOGOUT_IP
 run_rc 1 "$BIN/native-best" switch radio2
@@ -414,7 +483,7 @@ run_rc 0 "$BIN/fix-qca-sta-rate" phy2-sta0
 ! grep -q 'he-mcs-5 2:7' "$TEST_ROOT/trace" || fail 'radio2 warmup'; pass 'radio2 warmup protects RX initialization'
 reset; TEST_USB_ONLINE=0; export TEST_USB_ONLINE; printf '10.8.8.8 phy3-sta0\n' > "$TEST_ROOT/etc/scut-multiwan/usb.session"
 run_rc 0 "$BIN/campus-usb-login" phy3-sta0
-grep -q '^LOGOUT phy3-sta0 168298504' "$TEST_ROOT/trace" || fail 'USB stale lease'; pass 'USB DHCP replacement releases old session before login'
+grep -q '^REMOTE_UNBIND phy0-sta0 168298504 type=2' "$TEST_ROOT/trace" || fail 'USB stale lease'; pass 'USB DHCP replacement releases the old IP/MAC through healthy Native before login'
 reset; TEST_NATIVE_ONLINE=0; TEST_ROUTE_FAIL=1; export TEST_NATIVE_ONLINE TEST_ROUTE_FAIL
 run_rc 1 "$BIN/dualwan-refresh" apply; grep -q 'route flush table 103' "$TEST_ROOT/trace" || fail 'single route error ignored'; pass 'single-WAN route installation failure is checked'
 reset; TEST_SCAN_EMPTY=phy0-sta0; export TEST_SCAN_EMPTY
@@ -438,7 +507,9 @@ rm "$TEST_ROOT/ready"
 pass 'concurrent losers cannot remove winner lock; SIGKILL releases it'
 echo "ALL $N GROUPS PASSED"
 '''
-runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\n' + (root/'tests/legacy-cases.sh').read_text() + '\n' + (root/'tests/recovery-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/holiday-cases.sh').read_text() + '\n' + (root/'tests/wired-cases.sh').read_text() + '\n' + (root/'tests/experience-cases.sh').read_text() + '\n' + (root/'tests/portal-response-cases.sh').read_text() + '\n' + (root/'tests/legacy-cases.sh').read_text() + '\n' + (root/'tests/recovery-cases.sh').read_text() + '\n' + (root/'tests/login-control-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/morning-retry-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
+runner=runner.replace('echo "ALL $N GROUPS PASSED"', (root/'tests/remote-release-cases.sh').read_text() + '\necho "ALL $N GROUPS PASSED"')
 runner=runner.replace('/tmp/scut-multiwan-tests', remote)
 (out/'run.sh').write_text(runner)
 (out/'run.sh').chmod(0o755)

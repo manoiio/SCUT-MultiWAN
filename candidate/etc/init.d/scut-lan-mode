@@ -1,0 +1,14 @@
+#!/bin/sh /etc/rc.common
+START=99
+STOP=8
+USE_PROCD=1
+start_service() {
+    /usr/bin/scut-lan-mode restore || return 1
+    # Catch a boot before/during the morning window; daily claims prevent
+    # duplicate cron/restarts. An evening service restart never logs in.
+    /usr/bin/scut-morning-start schedule >/dev/null 2>&1 || :
+    procd_open_instance
+    procd_set_param command /usr/bin/scut-lan-watch
+    procd_set_param respawn 3600 5 5
+    procd_close_instance
+}

@@ -1,0 +1,5 @@
+1dfd3d2f39562a2cb5c76706717185dfab13bb060cdfeee57feb21d6f5bba677  /usr/lib/scut-multiwan/common.sh
+a236272f4494493f59a337b9556fe94235b2c02b89d101b21684fd29f7bf318d  /usr/bin/native-best
+2aef8507a4d01857d898115e330f688a74d91b968da5e1222246d8e30d579275  /usr/bin/scut-morning-start
+0a66d3fa2f330fa3aa2feb9a1399fa29616876d9d55453a33205d360bbf20733  /usr/bin/scut-lan-links
+9153485164696385a47d547d8fea3a4b16558c8219c4f56b106868eb3b63d4e3  /usr/lib/scut-multiwan/wireless-control.sh

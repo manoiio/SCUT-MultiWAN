@@ -1,0 +1,36 @@
+{
+  "as_of": "2026-10-07T21:31:40+08:00",
+  "final_mode": "wired",
+  "ready": true,
+  "persistent": true,
+  "router_boot_id": "1e642942-ec2c-4fc7-84e2-302aa6be4648",
+  "wired_pid_retained": 9646,
+  "proxy_pid_after_activation": 16608,
+  "mptcp_tunnel_subflows_total": 3,
+  "checks": {
+    "go_race": "PASS",
+    "busybox_isolated_cases": 8,
+    "linux_namespace_delayed_tun_poll": "PASS 0.64s",
+    "physical_lan_ipv4_icmp": "2/2",
+    "router_ipv6_icmp": "2/2 plus one duplicate",
+    "luci_exact_allowlist_rpc": "PASS",
+    "luci_frontend_mock": "PASS",
+    "luci_static_file_served": "HTTP 200 and matching SHA256",
+    "luci_menu_index_contains_scut_lan": true,
+    "mode_service_restart_restores_wired": true
+  },
+  "sha256": {
+    "router_ip_tunnel": "c357c51ce71cd70809a723c1917573206a5d2c784f99e97886a8ea0ff7e3470f",
+    "vps_ip_tunnel": "b872d704268f2127dfd3d846cbdbc93d32c8a25078851f3d49a0186476959321",
+    "router_mode_follow_proxy": "dc3c8184a3d7520b32fc605b873a5f46aa470173dbaba8745127157c566deb99",
+    "vps_web_proxy_unchanged": "7427364d244e6bf761c9d112c6392413a319eb754b0d6fe2d31f0b8ef3214209",
+    "luci_view": "c2e3ddc5cd77c61c9439fe8047d832c6f88739d53a778a6117a8d61f3be570cb"
+  },
+  "not_verified": [
+    "actual full router cold boot",
+    "IPv6 LAN client full return path",
+    "authenticated browser button clicks",
+    "new IP tunnel sustained throughput or long-term stability"
+  ],
+  "known_exception": "multi gateway DNS query returned NOERROR with zero answers; retained in acceptance.json"
+}

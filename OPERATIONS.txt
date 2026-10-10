@@ -1907,3 +1907,437 @@ MCS9/RX11、有线引擎9646运行。18:25/19:06两次自然firmware fatal后恢
 含原历史及100MB控制/550MB构建预留，累计保守61579247740B/62000000000B，
 剩420752260B，不再大流量下载。详细结果/原始逐秒/TCP记录保存在
 deployment/ingress-20261007/evidence/；README和现行代理文档更新，无Git提交推送。
+
+2026-10-07 20:00–21:40 GMT+8 — LAN 三种出口按钮及持久单有线默认
+用户要求对全部 LAN 流量提供三网聚合隧道/原三网/单有线三种状态，明确
+选择持久默认单有线。现已部署 LuCI 网络→LAN出口切换，URL为
+http://192.168.1.1/cgi-bin/luci/admin/network/scut_lan，沿用原LuCI登录权限。
+两个RPC包装入口严格allowlist参数，原1088代理同时跟随LAN选择，防止它
+绕过单有线模式继续经VPS。当前wired/ready=true/persistent=true。
+新增全协议IP隧道，独立57502，TLS1.3认证、MPTCP三子流、TUN/MTU1400，
+支持IPv4/IPv6及TCP/UDP/ICMP，生产仍用新VPS。原57501VPS程序SHA保持
+7427364d244e6bf761c9d112c6392413a319eb754b0d6fe2d31f0b8ef3214209；
+Router新IP隧道SHAc357c51ce71cd70809a723c1917573206a5d2c784f99e97886a8ea0ff7e3470f；
+VPS新IP隧道SHAb872d704268f2127dfd3d846cbdbc93d32c8a25078851f3d49a0186476959321；
+Router模式跟随代理SHAdc3c8184a3d7520b32fc605b873a5f46aa470173dbaba8745127157c566deb99。
+认证令牌/私钥和配置仅设备私有文件，未打印、下载或纳入Git。
+LAN优先级90仍按iif br-lan、表106接管wired/tunnel；multi恢复IPv4表103。
+原表103三路1:1:1及路径201–203/rules80–82保持；1088直接模式用独立标记
+0x5343选择103/106，并通过SIGHUP关闭旧连接，不重启路径helper。切换短暂
+阻断外部转发，LAN管理保留；有线/隧道失效不偷偷转到其他出口。IPv6当前
+原三网仍只走有线，ULA经NAT66；新增dhcp.lan.ra_default=1及TUN fw4区域。
+LAN DNS在wired/tunnel使用独立1053，原校园认证DNS/会话/无线维护保持。
+匹配ABI的官方kmod-tun包缺少APK签名块；官方HTTPS sha256sums核对
+d3dc39ebeab829483a8f2e3d834b9f38096f4195f4203908d4cf351514db0f9c后，仅
+指定本地文件allow-untrusted/no-network安装，未改全局信任。最初TUN握手
+后收包不醒由Go fd注册早于TUNSETIFF引起，改为ioctl后os.NewFile已修复；
+真实Linux隔离namespace延迟收包通过，namespace已清理。Cloudflare HTTPS
+VPS直接也超时，对照改为确认可达的相同Bilibili/IP查询端点。
+21:26:43–47最终3模式对照：隧道物理LAN与1088均58.252.223.164；单有线
+两者均110.64.88.149；原三网分别110.64.88.149和221.4.34.127。物理en0
+TLS/HTTP及UDP检查通过，原三网网关DNS一次NOERROR零答案例外保留。物理
+LAN ICMP2/2；Router源IPv6外网2/2附1个重复，Macen0无IPv6地址，未验证
+真实IPv6 LAN客户端。Go race通过；Linux TUN poll通过；BusyBox8项隔离
+mock通过并用最终生成器再次复验，所有ip/nft/服务为mock，生产仍wired。
+LuCI静态资源HTTP200/SHA一致、菜单缓存含scut_lan、后端RPC/前端mock通过；
+未在登录后真实浏览器逐一点击。S99服务恢复持久wired已实测，未整机重启。
+boot ID仍1e642942-ec2c-4fc7-84e2-302aa6be4648，有线引擎9646保留。
+Router基础备份/root/scut-lan-modes-backup-20261007，21:14:00确认；代理跟随
+备份/root/scut-lan-proxy-backup-20261007，21:29:04确认；VPS基础同名备份
+21:11:55确认。均权限700，有独立rollback.sh，三个保护已解除。Router
+基础回滚先调用代理跟随回滚，再恢复原策略及防火墙/DHCP；VPS只撤此次
+独立隧道/规则/sysctl，不改旧Web代理。安装脚本绑定历史基线，不重跑。
+本轮没有大文件测速；此前128.23Mbps为旧Web代理，不能冒充新IP隧道验收。
+长期吞吐/稳定性和整机冷启动尚未验证。21:30:30 VPS RX24195187638/
+TX32856004815，含历史及控制/构建预留保守累计61625491783/62000000000B，
+余374508217B。当前使用方法、验证和回滚见docs/lan-egress-modes.md及
+deployment/lan-modes-20261007/；本地修改/生产部署已记录，无Git提交推送。
+
+2026-10-08 19:00–19:02 GMT+8 — 单有线查询出现202.38.229.80，只读核对
+用户在ip.net.coffee不开代理时观察到第二IPv4。实时wired/ready=true，
+wan地址110.64.88.149；pref90 iif br-lan lookup106默认只via110.64.88.254
+devwan，nft禁止LAN转往其他WAN。针对202.38.229.80的LAN路由查询同样wan。
+严格curl -4 --interface wan：IP138/IPIP/ifconfig.me/Cloudflare/字节/网易
+返回110.64.88.149，my.ip.cn返回202.38.229.80；带no-cache和独立query仍
+返回后者。APNIC RDAP实时登记SCUT-CN/202.38.192.0/18。页面JS同时请求
+IP138与IP.cn，结果不同添加“IPv4(备用出口)”卡片，因此该标签不能作为
+第二WAN证据。已固定有线复现差异，可能校方上游NAT/目的地分流或服务/CDN
+识别，未精确判定。Mac物理en0单独IPIP返回110.64.88.149；完整旧检查器
+在附加UDP DNS步骤报No route to host，未将该次完整检查计为通过。
+HK小流量IP.cn返回另一地址，表明该接口不对全部来源恒返回202.38.229.80，
+但不作为排除缓存或确认校方NAT的充分证据。仅网页/HEAD/IP查询小流量，
+未使用生产VPS做下载、未改模式/路由/认证/无线。更新说明，无Git提交推送。
+
+2026-10-08 19:15–20:13 GMT+8 — 三网会话暂停、手动登录及独立随机晨间启动
+用户报告 multi 看似单网，tunnel 查 IP 延迟高；只读核对无线虽关联但公网
+离线，表103仅有线。原精确IP注销返回“获取用户在线信息数据为空！”，
+两次绑定同源/同记录IP的只读online_list复核一致，确认旧会话消失。自动
+路径持久暂停并保留真实记录；按用户最终修订，不再等待15分钟自动重登。
+手动或次日各路晨间允许单次恢复，generic失败/超时/矛盾在线结果不释放。
+新增LuCI三路状态、分别登录/注销、Native当前radio和当天随机计划；严格
+RPC参数，异步pending期间不报告已登录，绑定接口公网HTTPS200才成功。
+Native手动/晨间走现有native-best apply两radio扫描比较及Portal锁事务。
+每天三路各自独立随机07:00:00–07:40:00，碰撞调整为不同时间，日期/计划
+持久；每路尝试前持久claim，同日失败/未知结果不重试。固定07:00/01/02
+任务删除，07:00仅启动schedule；周期watchdog、登录/有线启动、夜间入口
+等有各路时间守卫，启动服务在窗口内补调度，晚上重启不补晨间登录。
+今日计划Native07:17:29、USB07:10:23、有线07:23:14，仅展示；未伪造
+当前生产时间或提前执行次日任务，真实次日晨间待自然发生。
+19个文件备份/root/scut-lan-login-backup-20261008(700)后原子安装。
+首次RPC返回accepted但无worker，查出BusyBox缺nohup；此阶段没有新登录
+请求。改setsid+忽略HUP的exec后台启动，同时修复probe/schedule/guard。
+原guard未成功运行，发现后重新启动15分钟保护，20:09确认并结束guard。
+用户明确授权各一次手动登录验收：Native20:03:49 Keep radio2、20:03:56
+公网在线；USB20:04:24公网在线。有线18468原进程心跳保留，不真实注销。
+健康路由按既有两次成功/至少30秒恢复，20:05:46表103三路1:1:1。
+固定multi的12个物理en0连接观测110.64.88.149、221.4.34.108、221.4.34.127。
+tunnel有3个MPTCP子流；普通物理LAN和1088均58.252.223.164，UDP网关及
+1.1.1.1 DNS均NOERROR/2答案。20:13最终wired/ready/persistent=true，
+三路公网true，1088出口110.64.88.149，boot ID仍
+1e642942-ec2c-4fc7-84e2-302aa6be4648，未重启设备或修改认证配置。
+LAN隧道DNS改为通过VPS访问223.5.5.5/119.29.29.29；旧公网DNS地址选择
+不佳与无线会话失效共同影响。小样本IP138/IP.cn首字节从约0.9–1.8s变为
+0.16–0.33s；coffee主站仍3.3–4.5s，VPS直接同CF IP也6s超时及3.374s
+首字节，不宣称全部延迟修复。本机DNS有198.18/15 FakeIP，验收用真实
+网关DNS且绑定en0，不变更Mac代理。上述HEAD不是吞吐/长期稳定性验收。
+最终191组BusyBox隔离mock全部通过；追加异步测试首次失败是mock sleep
+无等待，worker最终实际login-ok，用busybox sleep修正后完整191复验通过。
+前端pending/verified及严格参数Node测试通过；真实RPC及两无线认证验证。
+静态页面HTTP获取SHA与安装一致；未在登录后真实浏览器逐按钮点击，
+有线注销、真实冷启动及次日晨间未实测。未做大文件下载。20:10:26 VPS
+RX24250674380/TX32898723981，含历史与原控制/构建预留保守使用
+61723697691/62000000000B，剩276302309B；新控制上传由原100MB预留覆盖。
+最终脚本SHA：scut-lan-links a3e65a301e35bfb973598ad3f37efe47997cfee260f47caf414d57982db2701b；
+scut-morning-start 2aef8507a4d01857d898115e330f688a74d91b968da5e1222246d8e30d579275。
+本轮回滚sh /root/scut-lan-login-backup-20261008/rollback.sh只恢复本轮
+文件/cron/功能标记，不任意清会话或用历史广范围回滚。源码、测试、
+部署记录及evidence在deployment/lan-login-20261008/；操作文档已更新，
+保留既有未提交改动，没有Git提交/推送。
+
+2026-10-08 20:17–20:29 GMT+8 — LAN 前端实际浏览器缓存/按钮修复及层级排版
+用户未看到三路状态/按钮。在用户现有Edge登录页实际复现旧三模式视图，
+规范JS服务端HTTP SHA为e4ee34c92b1ddacc3c975458c7f10a09efecc48e5c87b96ea148db46cf21dab2，
+但强制刷新/页面query仍显示旧模块。菜单切到内容版本模块并移走可重建
+LuCI索引后，浏览器普通刷新显示新控件，未清整个浏览器缓存或登录凭据。
+真实DOM继而发现六个按钮全部disabled：LuCI E将disabled:false字符串化
+为存在的HTML属性。修复为button.disabled属性赋值；mock同步改为真实
+属性存在性语义，覆盖空闲/执行中/成功后按钮状态，不把旧mock当真浏览器。
+用户要求排版美化及主次明确：上方当前出口概览、三模式卡片/当前高亮；
+下方独立三路登录卡片、六按钮及每日计划；scut-panel范围CSS、窄屏单列。
+最终menu view network/scut_lan_4464e1c3594d，由规范源码内容SHA前12位生成。
+新增tools/build_lan_view.py生成器；测试读取真实菜单指定模块并比对规范源
+及内容hash，Node前端回归通过，git diff --check通过。旧版本文件保留供
+已打开客户端，当前菜单只引用最终版。未重跑191组后端回归，后端未改。
+实际Edge已登录DOM显示三路公网验证通过，六按钮enabled、wired选择高亮，
+未点击执行校园登录/注销或切换模式，不重启路由器/rpcd/uhttpd。
+专用备份/root/scut-lan-view-cache-backup-20261008(700)含原菜单、规范源及
+菜单缓存；回滚只恢复前端和菜单。实际截图、清单及说明在
+deployment/lan-view-cache-20261008/。保留此前未提交工作，无Git提交推送。
+
+2026-10-08 20:33–20:51 GMT+8 — 原生页面标题链接、紧凑布局及注销晨间策略确认
+用户要求三个登录标题可跳转原生界面，并进一步压紧页面垂直布局。
+Native动态链接当前radio0/2，USB链接radio3，有线链接WAN；真实Edge逐一
+点击核对三个目标页面后回到LAN原地址。最终菜单引用network/scut_lan_e9b1431aabfb，
+规范源与内容版本文件SHA均为e9b1431aabfb7404042bfc2ee240f854e9ba53722745694d47d4f882241af1d9。
+按用户最新修订，手动注销当天暂停自动认证，次日各路随机晨间尝试一次；
+当日也可手动恢复。失败/未知结果不重复晨间认证。两个后端脚本增加logout
+暂停原因，调度器/cron保持原版本；未部署永久阻断晨间恢复的策略。
+完整194组BusyBox隔离mock通过，另3组启用随机功能标记的针对性复验通过，
+覆盖三路入口暂停、注销后watchdog阻断、次日恢复及同日claim不重复。
+这些认证为隔离mock；本轮没有真实注销/登录、模式切换或设备/服务重启。
+最终五文件先暂存语法/内容校验，在Portal锁下同级临时文件原子替换。
+备份/root/scut-lan-view-cache-backup-20261008(700)已补充两个后端原版本，
+回滚持有Portal锁，恢复本轮文件和菜单索引，不修改真实会话记录。
+600秒自动回滚保护20:51验证后确认并终止。scut-morning-start SHA保持
+2aef8507a4d01857d898115e330f688a74d91b968da5e1222246d8e30d579275；
+wireless-control.sh SHA 2f36e7e5507a2f0fdcc17c520db9e6e2038848d3bdfb1fb1002c66c5785980b5；
+scut-lan-links SHA 0a66d3fa2f330fa3aa2feb9a1399fa29616876d9d55453a33205d360bbf20733。
+最终wired/ready/persistent=true、available_wans=3；三路公网online=true，
+paused/running=false。Edge实显三路绿色在线、六按钮可用、单有线高亮，
+当天计划Native07:17:29、USB07:10:23、有线07:23:14未改变。
+最终截图、runtime和两份测试输出存deployment/lan-view-cache-20261008/evidence/。
+Node前端回归及git diff --check通过；真实次日晨间仍待自然观察。
+未调用VPS或做吞吐下载，控制上传仍由既有流量预留覆盖，保留既有未提交
+工作，没有Git提交或推送。
+
+2026-10-08 20:57–21:01 GMT+8 — 注销当天晨间边界与同日手动恢复
+收尾检查发现当天晨间尚未执行时，原调度器仍可能恢复刚手动注销的链路。
+修复mw_pause_login logout：先保留暂停，再按有效本地日期持久登记当天
+morning-claimed，跳过当天每日启动；次日日期不同仍允许一次恢复。无效
+时钟保留暂停并拒绝注销执行。未更改调度器/cron，不删除真实会话绕保护。
+完整195组BusyBox隔离回归通过，新增覆盖当天未执行晨间任务不重登。
+用户补充08:00后注销仍可同日手动重登、恢复watchdog等维护；追加1组针对
+性mock验证08:05注销后watchdog=75，手动重登/公网确认成功后暂停删除，
+watchdog=0。成功worker原有dualwan-refresh/probe保留，周期维护正常恢复；
+当日morning-claimed不阻止watchdog。没有在生产真实注销或重复认证。
+单文件备份/root/scut-logout-morning-backup-20261008(700)，回滚仅恢复
+wireless-control.sh并持有Portal锁；暂存/非空/字节/语法检查、原子替换及
+600秒保护已执行，21:01安装后SHA、三路状态验证通过并确认保护。
+最终helper SHA 9153485164696385a47d547d8fea3a4b16558c8219c4f56b106868eb3b63d4e3。
+三路在线且无暂停/任务，wired/ready/persistent=true保持。最终证据覆盖
+evidence/router-tests.txt、manual-relogin-focused-tests.txt、final-runtime.txt。
+次日自然晨间未实测；不执行真实注销作为验收，不重启设备或改变出口模式。
+
+
+2026-10-09 16:06–16:14 GMT+8 — jp1/jp2 国内 IPv6 与国外 IPv4 分开配置
+用户授权保留有线IPv6，随后要求推广到所有中国IP。明确边界：仅IPv6
+分配网段可走IPv6；现有IPv4客户端连接无法由VPS单方面转换协议。
+两台VPS按APNIC delegated-apnic-latest 20261009快照中的CN IPv6分配
+添加2015条合并静态路由，保留供应商IPv6地址、无IPv6默认路由；国外
+仍IPv4。分配国别不是精确地理位置，列表未设自动更新。MTU1500、BBR、
+fq及HDD /srv配置保留。逐台授权重启后全部路由及国外IPv4 HTTPS200
+验证通过，无failed unit；有线IPv6向两台临时端点分别返回200。
+路由器官方匹配内核BBR模块经正常签名索引验证安装。附带全局BBR配置
+移至/root/jp-domestic-tuning-20261009/12-tcp-bbr.conf.disabled，
+/etc/sysctl.d/99-jp-defaults.conf保留全局CUBIC/fq_codel。仅两台JP IPv6
+主机路由使用wan/proto242/congctl bbr，适用于路由器本机TCP；LAN转发
+拥塞控制由客户端决定。临时IPv4 BBR路由撤销。新脚本先暂存并通过
+实际BusyBox语法/限定目标/无WAN mock，原子安装后重复apply验证通过。
+/usr/sbin/jp-domestic-routes、/etc/init.d/jp-domestic-routes及
+/etc/hotplug.d/iface/97-jp-domestic已启用。路由器未重启/认证/切模式，
+既有策略规则保持，wired/ready/persistent=true。router冷启动未实测。
+32MiB下载jp1/jp2分别24.32/30.19Mbps；jp1 16MiB上传14.93Mbps/200。
+jp2 16MiB上传45秒超时；4MiB复测服务器32.325秒收全，客户端30秒超时，
+不能记成功吞吐。明显波动，短测不能宣称长期稳定。早期服务过期或
+IPv6 DAD前绑定失败导致的连接拒绝已排除，不算线路故障。
+本轮100MiB请求上限已纳入用户10GB累计额度预留，未做持续测速。
+测试服务及自动保护已结束；两台国内配置专用回滚分别为
+sh /var/backups/jp-domestic-ipv6-20261009/rollback.sh，保留国外调优。
+路由器回滚sh /root/jp-domestic-tuning-20261009/rollback.sh，撤销本轮
+路由/脚本、恢复CUBIC；BBR模块保留但不选用。完整记录在本聊天outputs。
+保留原有未提交改动，无Git提交/推送，未动旧生产VPS/代理或Portal会话。
+
+
+2026-10-09 19:01–19:09 GMT+8 — 两台JP VPS复查及IPv6邻居发现修正
+两台轻载，无内存/交换/磁盘压力，驱动与fq/TCP接收队列无丢弃。发现此前
+启用IPv6时保留link-local: []，供应商fe80::网关NS已收到，但无到其地址
+的路由。两台恢复link-local: [ipv6]，抓包可见正确NA回复；2015条中国
+静态路由、禁RA、无IPv6默认及国外IPv4 HTTPS200仍通过。eth0 sysctl赋值
+加失败容忍前缀，避免网卡改名前告警；未重启VPS/路由器或服务。
+专用备份/回滚在各台/var/backups/jp-ipv6-linklocal-20261009，10分钟
+保护验收后已解除。回滚会恢复此前间歇失效配置，仅供必要诊断。
+绑定有线wan各GET/POST4MiB均200，jp1下载/上传2.746/5.779秒，jp2
+2.216/5.261秒，服务器确认完整数据。短测16MiB，不能认定长期稳定；
+测试端点已关闭，Router生产模式/规则/认证未改，未使用旧生产VPS。
+只刷新apt索引并模拟，两台各96项可升级及1项keep-back，包含稳定/安全
+源内核、OpenSSH、OpenSSL；未真实升级/重启。后续建议日志容量治理、
+关闭无需的LLMNR、中国IPv6列表维护及配置互备；这些建议尚未部署。
+完整证据在本聊天outputs/optimization-audit-20261009.txt；保留既有
+脏树，无Git提交推送。新控制和索引流量纳入原10GB额度预留。
+
+2026-10-09 19:09–19:13 GMT+8 — Native 坏网络及晨间失败只读核对
+用户问Native为何没有自动切换，并确认没有其他设备使用校园无线。
+Native晨间计划07:24:20；morning-claimed=2026-10-09，job.pid文件07:24、
+job.result=failed文件07:25，login-paused=manual文件07:24。这里manual是
+worker提交登录前写入的通用暂停原因，不证明用户点过按钮或被手机挤掉。
+native-watchdog仍每5分钟由cron调用，但mw_login_paused native实际返回75，
+入口退出，后续DHCP/弱信号/两radio选优均未执行。radio2当前RSSI约-85dBm。
+明确的当前故障：wan2 DHCP于18:46:04 lease lost，此后广播discover；
+ubus up=false/pending=true/available=true，phy2-sta0无IPv4及默认路由，
+仍无线关联。Native/USB绑定HTTPS均6秒超时，有线200；表103仅有线，
+LAN持久wired/ready=true。Native探测未得到明确校园Portal重定向。
+当前丢DHCP发生在下午，不能用它证明早晨07:24失败原因。128KiB循环日志
+最早只留16:30左右，未设置持久日志文件；native-best临时调查文件已清理，
+worker将输出丢弃并将原始非零码合并为failed。因此无法追溯晨间具体是
+扫描、锁、DHCP、旧会话释放还是公网验证阶段失败；不归因其他设备挤占。
+未读取私有账号配置或输出Portal原响应；诊断阶段未运行scan/apply/认证/
+注销/重启/清暂停。随后用户要求三路晨间多次恢复、尽量09:00前上线，
+授权范围转为新晨间策略实现与部署；后续记录区分隔离测试与生产行为。
+
+2026-10-09 19:13–19:32 GMT+8 — 三路晨间多次恢复与失败记录已部署
+按用户新授权，替代此前“晨间失败当日不重试”：各路独立随机首次
+07:00–07:40，失败至少600秒冷却，cron每5分钟检查到期，每路每天最多
+12轮，09:00停止；较长恢复事务预留300秒，子步骤检查日期/截止余量。
+首次随机计划不改，新增*/5 7-8 scut-morning-start retry，早晨开机可补
+调度，晚间schedule/retry不认证。晨间状态在提交前持久保存日期/次数/
+下次时间/outcome，未知结果与重启不造成立即重复；健康链路跳过认证，
+不消耗次数，窗口内再离线仍可受限恢复。原Portal锁/精确旧IP释放/完整
+响应/保留不确定会话记录不弱化，失败释放仍不允许创建新登录。
+手动注销独立保存morning-cancelled当天日期，取消全部剩余晨间恢复；
+同日手动登录及公网验证成功仍解除暂停、恢复watchdog/路由，次日计划重启。
+Native同radio已最优但DHCP不可用时，增加有界约30秒的DHCP重获，保留
+会话记录，不直接认证。scut-lan-links保留origin/action/失败步骤及原始
+返回码，Native仅追加自身选优诊断事件；每路last-detail持久600，不捕获
+原始Portal响应或密码。前端显示晨间重试与已知步骤/码，内容模块91a690ca5f3b。
+完整208组实际BusyBox隔离mock通过，含三路冷却/重启/健康/取消/次日/
+截止/次数/锁退避、原始Native rc、DHCP恢复与会话保护；前端Node通过。
+首次新DHCP案例被前组刻意遗留的mock暂停阻断，未进入DHCP分支；仅隔离
+fixture清理后，完整最终208通过，未据此删除生产暂停或会话记录。
+八文件及cron先备份/root/scut-morning-retry-backup-20261009(700)，基线
+SHA及暂存非空/语法核验，通过Portal锁及部署标记下同级临时文件重命名。
+19:30:39安装，600秒guard有效运行，19:32:15实际状态验证后确认并结束。
+crond已消费重载通知；Edge真实页面确认新策略和当前Native/USB公网不可达、
+有线验证通过，截图保存在deployment/morning-retry-20261009/evidence/。
+实际仅做晚间无认证schedule/retry、状态读取及有线HTTPS检查；没有真实
+登录/注销、无线重启/扫描或LAN模式切换。Native/USB原session mtime保留
+10月8日20:03/20:04，原暂停保留；wired/ready/persistent=true，available=1。
+真实次日窗口未观察，不能将208组隔离回归称为实际校园登录验收。
+最终SHA：morning aabc00430d9eb4b9ca3655f59e52ec995fcebcd91b6c6b3c3e4a03b9a9217ee4；
+native-best 18201fc5e9bf8b75876c189cbb50ed3326eea033721cc5d9270a14b2dc2d21bf；
+links 3506cb37064c430db5fabb0508aa909244fd71c9c97c906cfb666ad64350659b；
+common 62acdb04ec347a11dd09ef2c1ed5e87828696525c936b16272bb53c6e1fd808d；
+wireless-control 23b28e04bfe923bf5655deeebdfa721ad652e73b6f2886dbeca1530d38fe4f91。
+回滚sh /root/scut-morning-retry-backup-20261009/rollback.sh只恢复本轮
+文件/菜单/cron，不删除真实会话、暂停、取消或次数；不要用历史广范围回滚。
+测试/代码/记录见deployment/morning-retry-20261009/，git diff --check通过。
+未做VPS或大流量测速，约6MB隔离包/控制上传由既有控制预留覆盖；保留
+原有未提交改动，没有Git提交/推送。
+
+
+2026-10-09 19:14–19:43 GMT+8 — JP两机更新/系统盘管理，VPS端国内对照
+用户明确不修改路由器设置。先jp1后jp2，各升级97包/新增1稳定安全源
+内核/0删除，逐台重启后6.12.111+deb13-amd64、OpenSSH deb13u4、
+OpenSSL3.5.7、systemd257.13验证；dpkg/apt检查通过，待升级0、failed0。
+BBR/fq/MTU1500、链路本地IPv6、2015条CN路由、无IPv6默认及国外IPv4
+HTTPS200保持，/srv挂载通过。保留旧内核，未autoremove。
+两台设置journald持久上限256M/运行时32M/根空闲512M/保留30天，启动
+日志确认生效。包安装后不保留缓存、每7天autoclean，本次clean后各16K。
+根盘各余6.3GiB，HDD保存备份与维护日志，app-data/downloads已准备，
+没有现存业务数据迁移。定向策略回滚仅/srv/backups/maintenance-20261009/
+rollback-storage.sh，不伪装成软件整体回滚；旧版本清单与受限/etc备份保留。
+国内测试仅VPS临时proto243/campus64路由，比较quickack/CUBIC/原BBR；
+quickack无一致收益、CUBIC整体不佳，均撤销。jp1完整下行20–30Mbps/
+上行约5–11Mbps；jp2一次8MiB上传45秒超时，原配置复查7.211秒完整200。
+单流重排最高297，队列/内存丢弃0，邻居正常；路径波动仍在，不能认为
+上游问题已修复。1500字节IPv6报文3/3通过。测试请求预算152MiB，首台
+包下载约168MB、次台复用缓存，沿用旧10GB额度，不持续测速。
+测试服务/定时器已停止、端口49232关闭，无测试路由残留。
+路由器仅只读与wan绑定curl/ping，未执行配置写入、控制服务/无线/认证。
+防火墙/DHCP/system/sysctl/JP脚本前后SHA一致，boot ID保持；network SHA
+变化对应原有native-best于19:39:45–19:40:29切radio2→radio0，后有
+scut-lan-links origin=manual/action=login记录。此流程不是本任务触发，
+未回退其它操作。有线地址、JP IPv6路由与router全局CUBIC仍在。
+完整结果/证据在本聊天outputs/maintenance-result-20261009.txt及
+maintenance-evidence-20261009.txt。保留原有脏树，无Git提交/推送。
+
+
+2026-10-09 19:39–20:03 GMT+8 — 真实无线恢复与跨线路误注销持久修复
+先按受保护手动入口恢复 USB，19:39:15 公网通过；Native 于19:39:41
+启动两 radio 选择，radio0 比旧radio2强44dB，完成候选DHCP。旧radio2
+释放通道超时，随后借 USB 请求释放旧Native，19:40:43 Native成功。
+19:42 USB遭精确空在线响应并按既有规则暂停，19:43:36 一次明确手动
+恢复后两无线再次同时在线。不能归因用户手机；同账号可保持两无线。
+
+只读A/B发现online_list即使curr_user_ip填写Native/旧Native，仍返回
+来源USB自身。学校公开a43.js明确定义unbind_type=1本机、2其他终端。
+原备用路径错误地用type1，存在误注销旁路的确定缺陷。mac/find在同
+账号下可正确列出Native/USB各自IP/MAC。原网页/Portal响应不保存。
+
+新增remote-release.sh，修改两注销impl：来源IP与记录目标不一致或
+接口无地址时不得发送type1。持真实Portal锁，经已在线、已记账且同
+账号旁路查询；来源行须唯一匹配来源硬件MAC，目标IP/MAC匹配目标
+硬件MAC。两次前置快照稳定才按实际MAC/type2释放；完整成功响应后
+需两次目标不在列表，并复核旁路公网与双方记录/身份才清目标记录。
+列表不完整/重复、MAC不匹配、不同账号、超时、目标仍在、来源变化
+均停止并保留记录。确认目标先已消失时，普通自动暂停留记录，仅
+明确手动/晨间入口可在正向来源控制与两次列表确认后正常清记录。
+原两radio选优、晨间重试、手动注销语义保留，固定阶段/rc可留诊断。
+
+最终新版本218组实际BusyBox隔离回归通过；旧stale-DHCP/rollback
+断言期望错误来源type1，已改为正确旁路type2，完整重跑通过。两路
+实际只读helper快照也匹配真实IP/硬件MAC。20:00:30三文件原子安装，
+原两impl预先备份/root/scut-remote-release-backup-20261009(700)，
+600秒回滚保护；20:03:07验收后确认并停止保护。回滚只恢复两impl，
+新库留作无引用数据，不修改配置、会话/暂停/额度/取消日期。
+
+20:00:56真实受控跨线路验收：仅从USB释放当前Native，20:01:05
+helper rc0；USB公网rc0、Native公网rc1、Native记录已确认释放。
+随后一次手动Native重新走radio选择，radio0已最优，20:01:47公网
+成功并解除暂停。USB全程保持登录，无追加USB认证。20:02:37三路
+公网在线、无暂停、表103三路1:1:1；20:03:07再次三路绑定公网确认。
+LAN wired/ready/persistent=true；七份网络/无线/防火墙/DHCP/认证/
+有线/cron配置SHA保持，无整机重启、无VPS动作或大流量测速。
+真实Edge页面三路已登录，截图与测试/最终runtime在对应evidence。
+顺带修正README现行晨间说明和参考cron中的旧固定启动项，仅本地
+文档修改，实际cron此前已是独立随机首次加有界重试。此前晨间部署
+晚间“未重新认证/无线离线”是19:32时点，不代表本轮恢复后状态。
+完整自然次日晨间及长期故障仍未观察；当前已验证代码和真实认证
+路径。保留无关dirty工作，没有Git提交、推送或凭据传播。
+
+2026-10-10 00:19 GMT+8 — 有线释放有界重试、恢复路由及持久诊断日志
+用户确认10月9日23:57–23:59的有线短时不可达，未重启或断电。
+只读uptime两次定位整机启动23:57:21；boot ID
+d1c57078-6dca-4b07-a9e0-b8b23b0c607e。早期20:01日志为未校时墙钟。
+23:57:47旧会话发现/释放未确认，进程退出75；23:58:47自动重试，
+23:58:51释放确认，23:58:54 UDP心跳完成。有线首轮路由处于
+recovering，00:05:03单有线LAN仍ready=false，旧定时刷新未完成
+二次确认，不能精确认定每次失败是锁竞争。00:06:56有线正常按
+静默退出76。pstore及重启前日志缺失；当前ath11k模块与修复版
+哈希一致。本次重启原因未知，不能归因手机、驱动、OOM或电源。
+
+用户随后要求修复首轮释放无确认问题并保存重启前日志。新增三轮
+有界发现/定向注销，保留明确确认才登录、真实Portal锁及每轮时间
+守卫；发现阶段无凭据、不回答Identity/MD5、不重复claim额度。
+首次心跳触发独立有界路由复核，身份失效立即停、最多6次，仍守
+HTTPS及30秒恢复确认/静默规则，无认证或会话变更。
+
+00:17:44原子安装5文件；安装时引擎已因静默退出，持单实例与Portal
+锁，无活跃exe被替换。备份/root/scut-reboot-recovery-backup-20261010
+(700)，专用rollback.sh恢复旧binary/gate与原日志3配置项，不停止
+活跃引擎或重新认证，不删除记录/日志。600秒自动回滚保护，
+00:19:42确认保留。生产system.log写/etc/scut-logs(700,文件600)，
+2MiB当前+2MiB.old；S11在S12log前按新boot归档最近4份各最多约1MiB
+旧日志尾部，总量约8MiB。logd原PID1622/-S128保持，增加标准file
+follower，每分钟记录boot/uptime/可用内存/负载/温度。
+
+222组完整实际BusyBox隔离回归、39项ARM64协议、26项日志/路由
+隔离检查通过；原生logread在/tmp的1KiB阈值追加/轮转通过。生产
+验收两标记在log reload后保留，00:17:49与00:18:49采样连续落盘。
+5文件SHA通过；网络/无线/防火墙/DHCP/认证/有线配置/cron/三个
+session/有线预算SHA保持，boot ID不变，无重启、服务认证启动、
+注销或吞吐测速。真实冷启动释放与归档顺序尚未自然验证；硬锁死
+或突然掉电前末尾仍可能缺失，也不补回昨晚日志。操作说明、
+源码清单及脱敏测试证据见deployment/reboot-recovery-20261010。
+保留既有dirty工作，没有提交/推送，未传播凭据或保存Portal正文。
+
+2026-10-10 13:42–13:46 GMT+8 — 只读复核第三方AI日志检查报告
+boot ID与昨晚一致、uptime约13h45m，LAN wired ready=true且表103
+三路1:1:1。有线07:11:41在新版discovery round1明确释放旧会话，
+07:11:44心跳、07:11:46公网成功；07:12:17路由复核attempt3完成，
+是实际晨间服务恢复，不是整机冷启动/S11归档验收。
+
+157条odhcpd为39 stale+39 renew+79 piofile更新，先有LAN2物理掉线，
+继而br-lan down和前缀失效/恢复；内核carrier down_count39。
+LAN2对应本机Mac en0，将全部39个down时点与pmset当日Sleep/DarkWake/
+Wake对照，39/39落在电源事件前后12s内，WAN无物理down。内核显示
+Mac睡眠恢复100M、维护唤醒恢复1000M的协商变化。强相关支持Mac省电
+时重新协商，不支持当前认定路由器端口损坏，也不应简单称普通续租。
+
+Native07:40从radio0切radio2成功；当前旧phy0-sta0与扫描接口已无，
+控制入口保留新Native/USB。清理报错未导致当前失效，但源码
+disable_radio吞掉ifdown/wifi down返回码、最终uci commit决定状态，
+值得后续增加实际旧WAN/关联消失的有界确认，本轮未改代码或部署。
+mtdsplit后UBI块rootfs正常挂载squashfs，UBIFS恢复完成；两次procd
+signal1仅启动期，发送者未知。无OOM/panic/ath11k fatal/I/O错误证据。
+检查后807采样最低可用92.6MiB、最高温57.2℃，0.80负载出现13:42
+检查时点，不与原报告13:38前0.39混用。仅补诊断文档，未改设备、
+Mac电源设置、认证/服务/路由，无重启或测速；无提交/推送。
+详见docs/log-review-20261010.md，未复制原始日志/凭据到仓库。
+
+
+2026-10-10 14:07–14:11 GMT+8 正常事件误告警及 Native 清理修复
+用户要求“全部修复”；已完成 13:42 只读诊断后实施，未改 Mac 睡眠。
+本轮只部署七个文件与 /sbin/logread 链接，独立保留原生 ubox 后端。
+常规日志调整正常 cron、链路关联 ULA、已正常挂载的 UBI 启动、
+启动期 signal 1、已证实共享目录/旧接口清理提示的等级；真实错误
+和未知状态保留。Native 最多十二轮等待 WAN 停止及关联消失。
+原始 raw 与分类 system 各 2MiB+old；四次启动尾部优先取 raw，
+轮转与归档总约 12MiB。LuCI 系统日志默认分类，按钮可看原始 RAM。
+实际 225 组 BusyBox 隔离回归、42 项 ARM64 C 分类、18 项流处理、
+29 项归档/路由、10 项前端 mock 通过；前端也使用设备实际 Class/super。
+5990 行 raw/system 对照一致，157 RFC9096 warn 对应 157 info；
+procd 启动提示两条 notice，mtdsplit info；原始等级完整保留。
+三路绑定 HTTPS HEAD 200，wan=0.105145s、phy2=0.127056s、
+phy3=0.117171s。单有线 ready=true/persistent=true、三路路由1:1:1。
+network/wireless/firewall/dhcp/system/cron/认证配置/三会话/夜间预算
+哈希未变；boot ID d1c57078-6dca-4b07-a9e0-b8b23b0c607e、logd PID1622
+未变。只换 file follower，没有认证、注销、无线切换或整机重启。
+14:09 补充每轮刷新启动时钟基准，避免首次 NTP 校时使启动窗口偏移。
+backup=/root/scut-log-policy-backup-20261010 (700)，14:11:01 confirmed，
+自动保护已解除；专用 rollback.sh 保留 raw 证据并只恢复本次范围。
+日志交接间隙的 RAM 副本独立放备份 evidence，不混入常规流制造重复。
+未用已登录真实浏览器验收（当前浏览器无路由器会话）；已核对部署
+JS 与既有 ACL 命令。真实新切换、Mac 睡眠及冷启动仍待自然观察。
+整机过去重启的根因仍未定位，本次不能宣称重启故障已治愈。
+详见 deployment/log-policy-20261010/README.md 与 candidate.sha256。
+本地文件与生产部署均已完成，没有提交或推送 Git。

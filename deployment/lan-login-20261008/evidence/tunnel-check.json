@@ -1,0 +1,1 @@
+{"label": "tunnel-final", "physical_interface": "en0", "tls_http_status": "HTTP/1.1 302 Found", "observed_exit_ipv4": "58.252.223.164", "udp_dns_1.1.1.1": {"id_matches": true, "rcode": 0, "answers": 2, "seconds": 0.062, "reply_peer": "1.1.1.1"}, "udp_dns_192.168.1.1": {"id_matches": true, "rcode": 0, "answers": 2, "seconds": 0.001, "reply_peer": "192.168.1.1"}}

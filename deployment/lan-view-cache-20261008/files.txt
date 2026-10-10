@@ -1,0 +1,5 @@
+usr/lib/scut-multiwan/wireless-control.sh
+usr/bin/scut-lan-links
+www/luci-static/resources/view/network/scut_lan.js
+www/luci-static/resources/view/network/scut_lan_e9b1431aabfb.js
+usr/share/luci/menu.d/luci-app-scut-lan.json

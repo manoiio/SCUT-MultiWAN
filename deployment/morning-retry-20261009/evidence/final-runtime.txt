@@ -1,0 +1,16 @@
+Fri Oct  9 19:32:15 CST 2026
+{"mode":"wired","ready":true,"persistent":true,"available_wans":1}
+{"links":[{"slot":"native","device":"phy2-sta0","radio":"radio2","online":false,"paused":true,"pause_reason":"manual","running":false,"last_action":"failed","last_stage":"none","last_rc":0},{"slot":"usb","device":"phy3-sta0","radio":"none","online":false,"paused":true,"pause_reason":"vanished","running":false,"last_action":"login-ok","last_stage":"none","last_rc":0},{"slot":"wan","device":"wan","radio":"none","online":true,"paused":false,"pause_reason":"none","running":false,"last_action":"none","last_stage":"none","last_rc":0}],"morning":{"date":"2026-10-09","native":26660,"usb":25892,"wan":25559,"retry_active":false}}
+62acdb04ec347a11dd09ef2c1ed5e87828696525c936b16272bb53c6e1fd808d  /usr/lib/scut-multiwan/common.sh
+23b28e04bfe923bf5655deeebdfa721ad652e73b6f2886dbeca1530d38fe4f91  /usr/lib/scut-multiwan/wireless-control.sh
+aabc00430d9eb4b9ca3655f59e52ec995fcebcd91b6c6b3c3e4a03b9a9217ee4  /usr/bin/scut-morning-start
+3506cb37064c430db5fabb0508aa909244fd71c9c97c906cfb666ad64350659b  /usr/bin/scut-lan-links
+18201fc5e9bf8b75876c189cbb50ed3326eea033721cc5d9270a14b2dc2d21bf  /usr/bin/native-best
+91a690ca5f3b0fa9ec9f988292cb08f416152b582c22e93af961e77fa96aa06d  /www/luci-static/resources/view/network/scut_lan.js
+0 7 * * * /usr/bin/scut-morning-start schedule >/dev/null 2>&1
+*/5 7-8 * * * /usr/bin/scut-morning-start retry >/dev/null 2>&1
+-rw-------    1 root     root             7 Oct  9 07:24 /etc/scut-multiwan/native.login-paused
+-rw-------    1 root     root            24 Oct  8 20:03 /etc/scut-multiwan/native.session
+-rw-------    1 root     root             9 Oct  9 07:12 /etc/scut-multiwan/usb.login-paused
+-rw-------    1 root     root            24 Oct  8 20:04 /etc/scut-multiwan/usb.session
+deployment-confirmed

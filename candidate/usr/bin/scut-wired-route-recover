@@ -1,0 +1,37 @@
+#!/bin/sh
+# Complete the second health confirmation after a new wired heartbeat.
+# No authentication, release, quiet override or ledger updates here.
+. /usr/lib/scut-multiwan/common.sh || exit 1
+owner="$1"
+case "$owner" in ''|*[!0-9]*) exit 2;; esac
+started="$(awk '{print $22}' "/proc/$owner/stat" 2>/dev/null)"
+[ -n "$started" ] || exit 75
+same_engine() {
+    local pid stamp extra
+    read -r pid stamp extra < /tmp/scut-wired-ready 2>/dev/null || return 1
+    [ "$pid" = "$owner" ] && [ "$stamp" = "$started" ] && [ -z "$extra" ] &&
+        [ "$(awk '{print $22}' "/proc/$owner/stat" 2>/dev/null)" = "$started" ] &&
+        [ "$(readlink "/proc/$owner/exe" 2>/dev/null)" = /usr/bin/scutclient-wired ]
+}
+mw_lock wired-route-recover 8 || exit $?
+begin="$(mw_uptime)"
+attempt=0
+while same_engine; do
+    mw_require_route 30 || exit $?
+    now="$(mw_uptime)"
+    [ "$now" -ge "$begin" ] && [ $((now-begin)) -lt 180 ] || break
+    attempt=$((attempt+1))
+    /usr/bin/dualwan-refresh force >/dev/null 2>&1
+    rc=$?
+    same_engine || exit 75
+    if [ "$rc" = 0 ] && ip -4 route show table 103 | grep -Eq 'default .* dev wan( |$)|nexthop .* dev wan( |$)'; then
+        logger -t scut-wired "phase=route-recovery ready attempts=$attempt"
+        exit 0
+    fi
+    logger -t scut-wired "phase=route-recovery deferred attempt=$attempt code=$rc"
+    case "$rc" in 0|75) ;; *) exit "$rc";; esac
+    [ "$attempt" -lt 6 ] || break
+    sleep 15
+done
+logger -t scut-wired "phase=route-recovery exhausted attempts=$attempt"
+exit 75

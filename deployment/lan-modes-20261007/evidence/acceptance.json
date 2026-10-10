@@ -1,0 +1,144 @@
+{
+  "trials": [
+    {
+      "mode": "multi",
+      "time": "2026-10-07T21:26:43.429467+08:00",
+      "switch": {
+        "exit_code": 0,
+        "stdout": "{\"mode\":\"multi\",\"ready\":true,\"persistent\":true}",
+        "stderr": "Command failed: ubus call service delete { \"name\": \"scut-lan-tunnel\" } (Not found)"
+      },
+      "physical_lan": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"multi\", \"physical_interface\": \"en0\", \"tls_http_status\": \"HTTP/1.1 302 Found\", \"observed_exit_ipv4\": \"110.64.88.149\", \"udp_dns_1.1.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 2, \"seconds\": 0.274, \"reply_peer\": \"1.1.1.1\"}, \"udp_dns_192.168.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 0, \"seconds\": 0.006, \"reply_peer\": \"192.168.1.1\"}}",
+        "stderr": "",
+        "result": {
+          "label": "multi",
+          "physical_interface": "en0",
+          "tls_http_status": "HTTP/1.1 302 Found",
+          "observed_exit_ipv4": "110.64.88.149",
+          "udp_dns_1.1.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 2,
+            "seconds": 0.274,
+            "reply_peer": "1.1.1.1"
+          },
+          "udp_dns_192.168.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 0,
+            "seconds": 0.006,
+            "reply_peer": "192.168.1.1"
+          }
+        }
+      },
+      "explicit_1088": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"multi\", \"proxy\": \"192.168.1.1:1088\", \"http_status\": \"HTTP/1.1 200 OK\", \"observed_exit_ipv4\": \"221.4.34.127\"}",
+        "stderr": "",
+        "result": {
+          "label": "multi",
+          "proxy": "192.168.1.1:1088",
+          "http_status": "HTTP/1.1 200 OK",
+          "observed_exit_ipv4": "221.4.34.127"
+        }
+      }
+    },
+    {
+      "mode": "tunnel",
+      "time": "2026-10-07T21:26:44.717895+08:00",
+      "switch": {
+        "exit_code": 0,
+        "stdout": "{\"mode\":\"tunnel\",\"ready\":true,\"persistent\":true}",
+        "stderr": "Command failed: ubus call service delete { \"name\": \"scut-lan-dns\" } (Not found)"
+      },
+      "physical_lan": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"tunnel\", \"physical_interface\": \"en0\", \"tls_http_status\": \"HTTP/1.1 302 Found\", \"observed_exit_ipv4\": \"58.252.223.164\", \"udp_dns_1.1.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 2, \"seconds\": 0.229, \"reply_peer\": \"1.1.1.1\"}, \"udp_dns_192.168.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 2, \"seconds\": 0.001, \"reply_peer\": \"192.168.1.1\"}}",
+        "stderr": "",
+        "result": {
+          "label": "tunnel",
+          "physical_interface": "en0",
+          "tls_http_status": "HTTP/1.1 302 Found",
+          "observed_exit_ipv4": "58.252.223.164",
+          "udp_dns_1.1.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 2,
+            "seconds": 0.229,
+            "reply_peer": "1.1.1.1"
+          },
+          "udp_dns_192.168.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 2,
+            "seconds": 0.001,
+            "reply_peer": "192.168.1.1"
+          }
+        }
+      },
+      "explicit_1088": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"tunnel\", \"proxy\": \"192.168.1.1:1088\", \"http_status\": \"HTTP/1.1 200 OK\", \"observed_exit_ipv4\": \"58.252.223.164\"}",
+        "stderr": "",
+        "result": {
+          "label": "tunnel",
+          "proxy": "192.168.1.1:1088",
+          "http_status": "HTTP/1.1 200 OK",
+          "observed_exit_ipv4": "58.252.223.164"
+        }
+      }
+    },
+    {
+      "mode": "wired",
+      "time": "2026-10-07T21:26:47.123483+08:00",
+      "switch": {
+        "exit_code": 0,
+        "stdout": "{\"mode\":\"wired\",\"ready\":true,\"persistent\":true}",
+        "stderr": ""
+      },
+      "physical_lan": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"wired\", \"physical_interface\": \"en0\", \"tls_http_status\": \"HTTP/1.1 302 Found\", \"observed_exit_ipv4\": \"110.64.88.149\", \"udp_dns_1.1.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 2, \"seconds\": 0.001, \"reply_peer\": \"1.1.1.1\"}, \"udp_dns_192.168.1.1\": {\"id_matches\": true, \"rcode\": 0, \"answers\": 2, \"seconds\": 0.0, \"reply_peer\": \"192.168.1.1\"}}",
+        "stderr": "",
+        "result": {
+          "label": "wired",
+          "physical_interface": "en0",
+          "tls_http_status": "HTTP/1.1 302 Found",
+          "observed_exit_ipv4": "110.64.88.149",
+          "udp_dns_1.1.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 2,
+            "seconds": 0.001,
+            "reply_peer": "1.1.1.1"
+          },
+          "udp_dns_192.168.1.1": {
+            "id_matches": true,
+            "rcode": 0,
+            "answers": 2,
+            "seconds": 0.0,
+            "reply_peer": "192.168.1.1"
+          }
+        }
+      },
+      "explicit_1088": {
+        "exit_code": 0,
+        "stdout": "{\"label\": \"wired\", \"proxy\": \"192.168.1.1:1088\", \"http_status\": \"HTTP/1.1 200 OK\", \"observed_exit_ipv4\": \"110.64.88.149\"}",
+        "stderr": "",
+        "result": {
+          "label": "wired",
+          "proxy": "192.168.1.1:1088",
+          "http_status": "HTTP/1.1 200 OK",
+          "observed_exit_ipv4": "110.64.88.149"
+        }
+      }
+    }
+  ],
+  "final_wired": {
+    "exit_code": 0,
+    "stdout": "{\"mode\":\"wired\",\"ready\":true,\"persistent\":true}\n{\"mode\":\"wired\",\"ready\":true,\"persistent\":true}",
+    "stderr": "Command failed: ubus call service delete { \"name\": \"scut-lan-tunnel\" } (Not found)"
+  }
+}

@@ -8,6 +8,7 @@ case "${1:-}" in
  native|usb) SLOT="$1";;
  *) exit 2;;
 esac
+mw_login_paused "$SLOT" || exit $?
 mw_require_active 30 || exit $?
 mw_lock "night-$SLOT" 8 || exit $?
 mw_portal_lock 0 || exit $?

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Existing LuCI ACL grants this exact command; no new exec permissions needed.
+. /lib/functions.sh
+log_file="$(uci_get system @system[0] log_file '')"
+if [ -f "$log_file" ]; then
+    tail -n 1000 "$log_file"
+else
+    /sbin/logread -l 1000 -e ^
+fi
